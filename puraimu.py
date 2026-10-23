@@ -1,23 +1,42 @@
 import streamlit as st
 from datetime import datetime
 import os
+import json
 
 UPLOAD_DIR = "prime_images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-st.title("プライム共済 組織・教育管理アプリ（把握用）")
-st.write("マサキ医院長向け / 開発：石川副委員長")
+DATA_FILE = "prime_members_data.json"
 
-# サイドメニュー
-menu = st.sidebar.selectbox("メニュー選択", ["組織図・紹介ツリー", "新規メンバー登録", "メンバーの削除・編集", "グループ全体集計"])
-
-# セッション状態の初期化（初期データ）
-if "members" not in st.session_state:
-    st.session_state["members"] = [
+# データの読み込み関数
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    # 初期データ
+    return [
         {"id": 1, "name": "山田 太郎", "upline": "マサキ（自分）", "binary_pos": "左（Left）", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
         {"id": 2, "name": "佐藤 花子", "upline": "山田 太郎", "binary_pos": "右（Right）", "rank": "メンバー", "status": "アクティブ", "seminar_count": 1, "image": ""},
         {"id": 3, "name": "鈴木 一郎", "upline": "マサキ（自分）", "binary_pos": "右（Right）", "rank": "サブリーダー", "status": "休眠", "seminar_count": 0, "image": ""},
     ]
+
+# データの保存関数
+def save_data(members):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(members, f, ensure_ascii=False, indent=4)
+
+st.title("プライム共済 組織・教育管理アプリ（把握用）")
+st.write("マサキ医院長向け / 開発：石川副委員長")
+
+# セッション状態の初期化とファイル同期
+if "members" not in st.session_state:
+    st.session_state["members"] = load_data()
+
+# サイドメニュー
+menu = st.sidebar.selectbox("メニュー選択", ["組織図・紹介ツリー", "新規メンバー登録", "メンバーの削除・編集", "グループ全体集計"])
 
 # --- 1. 新規メンバー登録（写真アップ対応） ---
 if menu == "新規メンバー登録":
@@ -52,6 +71,7 @@ if menu == "新規メンバー登録":
                     "seminar_count": seminar_count,
                     "image": ""
                 })
+                save_data(st.session_state["members"])
                 st.success(f"メンバー「{name}」を追加しました！")
             else:
                 st.warning("氏名を入力してください。")
@@ -68,7 +88,14 @@ elif menu == "組織図・紹介ツリー":
         left_members = [m for m in st.session_state["members"] if m["binary_pos"] == "左（Left）"]
         if left_members:
             for m in left_members:
-                st.info(f"**{m['name']}** \n\n (紹介者: {m['upline']} / ランク: {m['rank']} / 参加: {m['seminar_count']}回)")
+                cols = st.columns([1, 3])
+                with cols[0]:
+                    if m['image'] and os.path.exists(m['image']):
+                        st.image(m['image'], width=60)
+                    else:
+                        st.write("👤")
+                with cols[1]:
+                    st.info(f"**{m['name']}** \n\n (紹介: {m['upline']} / {m['rank']} / 参加:{m['seminar_count']}回)")
         else:
             st.write("（まだ登録されていません）")
             
@@ -77,7 +104,14 @@ elif menu == "組織図・紹介ツリー":
         right_members = [m for m in st.session_state["members"] if m["binary_pos"] == "右（Right）"]
         if right_members:
             for m in right_members:
-                st.warning(f"**{m['name']}** \n\n (紹介者: {m['upline']} / ランク: {m['rank']} / 参加: {m['seminar_count']}回)")
+                cols = st.columns([1, 3])
+                with cols[0]:
+                    if m['image'] and os.path.exists(m['image']):
+                        st.image(m['image'], width=60)
+                    else:
+                        st.write("👤")
+                with cols[1]:
+                    st.warning(f"**{m['name']}** \n\n (紹介: {m['upline']} / {m['rank']} / 参加:{m['seminar_count']}回)")
         else:
             st.write("（まだ登録されていません）")
 
@@ -87,24 +121,32 @@ elif menu == "組織図・紹介ツリー":
     
     for m in st.session_state["members"]:
         with st.expander(f"📌 {m['name']} （紹介者: {m['upline']} / 位置: {m['binary_pos']}）"):
-            st.write(f"- **ランク:** {m['rank']} | **ステータス:** {m['status']}")
-            
-            # セミナー回数の即時更新
-            new_count = st.number_input("セミナー参加回数を更新", min_value=0, value=m["seminar_count"], key=f"sem_{m['id']}")
-            m["seminar_count"] = new_count
-            
-            # 写真のアップロード機能
-            uploaded_file = st.file_uploader(f"{m['name']} の関連写真・スクショをアップロード", type=["jpg", "png", "jpeg"], key=f"img_{m['id']}")
-            if uploaded_file:
-                img_path = os.path.join(UPLOAD_DIR, f"member_{m['id']}.jpg")
-                with open(img_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-                m["image"] = img_path
-                st.success("写真を保存しました！")
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.write(f"- **ランク:** {m['rank']} | **ステータス:** {m['status']}")
                 
-            # アップロード済み画像の表示
-            if m["image"] and os.path.exists(m["image"]):
-                st.image(m["image"], caption=f"{m['name']} の登録写真", width=200)
+                # セミナー回数の即時更新
+                new_count = st.number_input("セミナー参加回数を更新", min_value=0, value=m["seminar_count"], key=f"sem_{m['id']}")
+                if new_count != m["seminar_count"]:
+                    m["seminar_count"] = new_count
+                    save_data(st.session_state["members"])
+                
+                # 写真のアップロード機能
+                uploaded_file = st.file_uploader(f"{m['name']} の関連写真・スクショをアップロード", type=["jpg", "png", "jpeg"], key=f"img_{m['id']}")
+                if uploaded_file:
+                    img_path = os.path.join(UPLOAD_DIR, f"member_{m['id']}.jpg")
+                    with open(img_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    m["image"] = img_path
+                    save_data(st.session_state["members"])
+                    st.success("写真を保存しました！")
+            
+            with col_b:
+                # アップロード済み画像の表示
+                if m["image"] and os.path.exists(m["image"]):
+                    st.image(m["image"], caption=f"{m['name']} の登録写真", width=120)
+                else:
+                    st.write("（写真未登録）")
 
 # --- 3. メンバーの削除・編集 ---
 elif menu == "メンバーの削除・編集":
@@ -117,6 +159,7 @@ elif menu == "メンバーの削除・編集":
         
         if st.button("選択したメンバーを削除する", type="primary"):
             st.session_state["members"] = [m for m in st.session_state["members"] if m["name"] != target_name]
+            save_data(st.session_state["members"])
             st.success(f"メンバー「{target_name}」を削除しました！メニューを切り替えてご確認ください。")
     else:
         st.write("登録されているメンバーはいません。")
