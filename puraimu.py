@@ -118,7 +118,7 @@ if menu == "新規メンバー登録":
 # --- 2. 組織図・紹介ツリー（CSSツリーによる完璧な線描画） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（無限階層・完全結線ツリー）")
-    st.write("左右どちらにも自由にスクロールして全体を見渡せます。接続線も綺麗に繋がります。")
+    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
     
     members = st.session_state["members"]
     
@@ -133,9 +133,8 @@ elif menu == "組織図・紹介ツリー":
         else:
             img_tag = '<div class="member-img no-img">写真なし</div>'
             
-        # 写真の上に「親の名前 - 左右」を表示
         parent_info = ""
-        if m.get("parent_id"):
+        if m.get("parent_id") is not None:
             p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
             if p_obj:
                 side = m.get("binary_side", "")
@@ -143,7 +142,6 @@ elif menu == "組織図・紹介ツリー":
         else:
             parent_info = '<div class="parent-badge top">👑 トップ階層</div>'
         
-        # 左右の子を厳密に取得
         left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
         right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
         
@@ -156,11 +154,9 @@ elif menu == "組織図・紹介ツリー":
         </div>
         """
         
-        # 子がいない場合はここで終了
         if not left_child and not right_child:
             return f"<li>{card_html}</li>"
             
-        # 子がいる場合は ul/li で左右の枝を展開（バイナリー構造を維持するため左右両方の枠を作る）
         left_html = render_tree_li(left_child["id"]) if left_child else '<li><div class="node-card empty">未配置</div></li>'
         right_html = render_tree_li(right_child["id"]) if right_child else '<li><div class="node-card empty">未配置</div></li>'
         
@@ -174,13 +170,12 @@ elif menu == "組織図・紹介ツリー":
         </li>
         """
 
-    roots = [m for m in members if m.get("parent_id"] is None]
+    roots = [m for m in members if m.get("parent_id") is None]
     
     tree_lis = ""
     for root in roots:
         tree_lis += render_tree_li(root["id"])
 
-    # 伝統的かつ最強に美しいCSSツリーのスタイル
     full_html = f"""
     <html>
     <head>
@@ -201,8 +196,6 @@ elif menu == "組織図・紹介ツリー":
             width: max-content;
             margin: 0 auto;
         }}
-        
-        /* CSS Tree Styling */
         .tree ul {{
             padding-top: 20px; 
             position: relative;
@@ -212,7 +205,7 @@ elif menu == "組織図・紹介ツリー":
             list-style-type: none;
             margin: 0;
             padding-left: 0;
-        }
+        }}
         .tree li {{
             float: left; 
             text-align: center;
@@ -223,9 +216,7 @@ elif menu == "組織図・紹介ツリー":
             display: flex;
             flex-direction: column;
             align-items: center;
-        }
-        
-        /* 親から子への線を結ぶ疑似要素 */
+        }}
         .tree li::before, .tree li::after {{
             content: '';
             position: absolute; 
@@ -234,22 +225,18 @@ elif menu == "組織図・紹介ツリー":
             border-top: 2px solid #aaa;
             width: 50%; 
             height: 20px;
-        }
+        }}
         .tree li::after {{
             right: auto; 
             left: 50%;
             border-left: 2px solid #aaa;
-        }
-        
-        /* 子が1つだけのときの調整 */
+        }}
         .tree li:only-child::after, .tree li:only-child::before {{
             display: none;
         }}
         .tree li:only-child {{ 
             padding-top: 0; 
-        }
-        
-        /* 左右端の処理 */
+        }}
         .tree li:first-child::before, .tree li:last-child::after {{
             border: 0px none;
         }}
@@ -259,9 +246,7 @@ elif menu == "組織図・紹介ツリー":
         }
         .tree li:first-child::after {{
             border-radius: 6px 0 0 0;
-        }
-        
-        /* 下層へ降りる縦線 */
+        }}
         .tree ul ul::before {{
             content: ''; 
             position: absolute; 
@@ -270,8 +255,7 @@ elif menu == "組織図・紹介ツリー":
             border-left: 2px solid #aaa;
             width: 0; 
             height: 20px;
-        }
-        
+        }}
         .node-card {{
             text-align: center;
             width: 110px;
