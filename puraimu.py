@@ -115,14 +115,13 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（SVG精密直線＆親ラベルバッジ表示） ---
+# --- 2. 組織図・紹介ツリー（無限階層・クリーンなツリー構造） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（きれいな接続線・親情報付き）")
-    st.write("顔写真の上に配置先（上位名-左右）を表示し、ズレのない線で繋いでいます。")
+    st.subheader("🌳 バイナリー組織図（無限階層・すっきりツリー構造）")
+    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
     
     members = st.session_state["members"]
     
-    # メンバーカードを生成（写真の上に「親の名前 - 左右」を表示）
     def render_node_html(member_id):
         m = next((item for item in members if item["id"] == member_id), None)
         if not m:
@@ -134,7 +133,7 @@ elif menu == "組織図・紹介ツリー":
         else:
             img_tag = '<div class="member-img no-img">写真なし</div>'
             
-        # 親の名前を取得してバッジ化（写真の上に表示）
+        # 親の名前 + 左右バッジを写真の上に表示
         parent_info = ""
         if m.get("parent_id"):
             p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
@@ -170,9 +169,12 @@ elif menu == "組織図・紹介ツリー":
                 <div class="name">{m['name']}</div>
                 <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
             </div>
+            <div class="line-container">
+                <div class="h-line"></div>
+            </div>
             <div class="children-container">
-                <div class="child-branch left">{left_html}</div>
-                <div class="child-branch right">{right_html}</div>
+                <div class="child-branch">{left_html}</div>
+                <div class="child-branch">{right_html}</div>
             </div>
         </div>
         """
@@ -183,7 +185,7 @@ elif menu == "組織図・紹介ツリー":
     for root in roots:
         trees_html += render_node_html(root["id"])
 
-    # 接続線を正確かつ綺麗に描画するためのCSS/JSテンプレート
+    # 接続線のズレやはみ出しを完全に解消した最新レイアウトCSS
     full_html = f"""
     <html>
     <head>
@@ -204,26 +206,25 @@ elif menu == "組織図・紹介ツリー":
             align-items: center;
             width: max-content;
             margin: 0 auto;
-            position: relative;
         }}
         .node-wrapper {{
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
-            margin: 0 10px;
+            margin: 0 8px;
         }}
         .node-card {{
             text-align: center;
             width: 110px;
             background: transparent;
-            padding: 4px;
+            padding: 2px;
             z-index: 2;
             position: relative;
         }}
         .node-card.empty {{
             width: 80px;
-            height: 65px;
+            height: 60px;
             border: 2px dashed #ccc;
             border-radius: 8px;
             display: flex;
@@ -232,7 +233,7 @@ elif menu == "組織図・紹介ツリー":
             color: #aaa;
             font-size: 9px;
             background: #fafafa;
-            margin-top: 15px;
+            margin-top: 10px;
         }}
         .parent-badge {{
             font-size: 9px;
@@ -250,8 +251,8 @@ elif menu == "組織図・紹介ツリー":
             background: #e8f5e9;
         }}
         .member-img {{
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #4CAF50;
@@ -260,8 +261,8 @@ elif menu == "組織図・紹介ツリー":
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
         .member-img.no-img {{
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: #e0e0e0;
             display: flex;
@@ -284,48 +285,50 @@ elif menu == "組織図・紹介ツリー":
             color: #666;
         }}
         
+        /* 接続線のデザインをスッキリ整理 */
+        .line-container {{
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 15px;
+            position: relative;
+        }}
+        .line-container::before {{
+            content: '';
+            width: 2px;
+            height: 15px;
+            background-color: #bbb;
+        }}
+        .h-line {{
+            position: absolute;
+            bottom: 0;
+            left: 25%;
+            right: 25%;
+            height: 2px;
+            background-color: #bbb;
+        }}
         .children-container {{
             display: flex;
             justify-content: center;
             position: relative;
-            margin-top: 25px;
+            width: 100%;
         }}
         .child-branch {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0 12px;
+            padding: 0 10px;
             position: relative;
-        }}
-        
-        /* CSSでズレのないT字接続線をつくる設計 */
-        .children-container::before {{
-            content: '';
-            position: absolute;
-            top: -15px;
-            left: 25%;
-            right: 25%;
-            height: 2px;
-            background-color: #999;
-        }}
-        .node-wrapper > .children-container::after {{
-            content: '';
-            position: absolute;
-            top: -25px;
-            left: 50%;
-            width: 2px;
-            height: 10px;
-            background-color: #999;
-            transform: translateX(-50%);
         }}
         .child-branch::before {{
             content: '';
             position: absolute;
-            top: -15px;
+            top: 0;
             left: 50%;
             width: 2px;
             height: 15px;
-            background-color: #999;
+            background-color: #bbb;
             transform: translateX(-50%);
         }}
     </style>
