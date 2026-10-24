@@ -47,7 +47,7 @@ st.write("マサキ医院長向け / 開発：石川副委員長")
 if "members" not in st.session_state:
     st.session_state["members"] = load_data()
 
-menu = st.sidebar.selectbox("メニュー選択", ["組織図・紹介ツリー", "新規メンバー登録", "メンバーの削除・編集", "グループ全体集計"])
+menu = st.sidebar.selectbox("メニュー選択", ["組織図・紹介ツリー", "新規メンバー登録", "メンバーの編集・削除", "グループ全体集計"])
 
 # --- 1. 新規メンバー登録 ---
 if menu == "新規メンバー登録":
@@ -115,23 +115,49 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（CSSツリーによる完璧な線描画） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード対応） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（無限階層・完全結線ツリー）")
-    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
+    st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
     members = st.session_state["members"]
     
+    # ミーティング向け設定：全体俯瞰モード ＆ 主要リーダー拡大設定
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        view_mode = st.selectbox("表示モード", ["通常表示", "全体俯瞰（コンパクト）モード"])
+    with col_opt2:
+        # 注目したい主要リーダー（3〜5人）をピックアップして大きく表示する設定
+        leader_candidates = [m["name"] for m in members]
+        highlight_leaders = st.multiselect("⭐ ミーティングで大きく強調するリーダー（3〜5人選択可）", options=leader_candidates, default=[])
+
+    # モードに応じたCSSスタイルの切り替え
+    if view_mode == "全体俯瞰（コンパクト）モード":
+        img_size = "28px"
+        card_width = "90px"
+        font_size = "9px"
+        pad_val = "10px 20px"
+    else:
+        img_size = "42px"
+        card_width = "110px"
+        font_size = "11px"
+        pad_val = "20px 40px"
+
     def render_tree_li(member_id):
         m = next((item for item in members if item["id"] == member_id), None)
         if not m:
             return '<li><div class="node-card empty">未配置</div></li>'
             
+        is_highlighted = m["name"] in highlight_leaders
+        current_img_size = "64px" if is_highlighted else img_size
+        current_card_width = "130px" if is_highlighted else card_width
+        highlight_border = "3px solid #ff9800" if is_highlighted else "2px solid #4CAF50"
+        highlight_bg = "#fff8e1" if is_highlighted else "transparent"
+
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
-            img_tag = f'<img src="{img_b64}" class="member-img">'
+            img_tag = f'<img src="{img_b64}" class="member-img" style="width: {current_img_size}; height: {current_img_size}; border: {highlight_border};">'
         else:
-            img_tag = '<div class="member-img no-img">写真なし</div>'
+            img_tag = f'<div class="member-img no-img" style="width: {current_img_size}; height: {current_img_size};">写真なし</div>'
             
         parent_info = ""
         if m.get("parent_id") is not None:
@@ -146,11 +172,11 @@ elif menu == "組織図・紹介ツリー":
         right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
         
         card_html = f"""
-        <div class="node-card">
+        <div class="node-card" style="width: {current_card_width}; background: {highlight_bg};">
             {parent_info}
             {img_tag}
-            <div class="name">{m['name']}</div>
-            <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
+            <div class="name" style="font-size: {font_size};">{m['name']}</div>
+            <div class="info" style="font-size: 8px;">{m['rank']} (参:{m['seminar_count']}回)</div>
         </div>
         """
         
@@ -185,7 +211,7 @@ elif menu == "組織図・紹介ツリー":
             font-family: Meiryo, sans-serif;
             background-color: transparent;
             margin: 0;
-            padding: 20px 40px;
+            padding: {pad_val};
             display: inline-block;
             min-width: 100%;
             box-sizing: border-box;
@@ -258,34 +284,33 @@ elif menu == "組織図・紹介ツリー":
         }}
         .node-card {{
             text-align: center;
-            width: 110px;
-            background: transparent;
-            padding: 2px;
+            padding: 4px;
+            border-radius: 8px;
             z-index: 2;
             position: relative;
         }}
         .node-card.empty {{
-            width: 80px;
-            height: 60px;
+            width: 70px;
+            height: 50px;
             border: 2px dashed #ccc;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #aaa;
-            font-size: 9px;
+            font-size: 8px;
             background: #fafafa;
             margin-top: 10px;
         }}
         .parent-badge {{
-            font-size: 9px;
+            font-size: 8px;
             font-weight: bold;
             color: #1565c0;
             background: #e3f2fd;
-            padding: 2px 6px;
-            border-radius: 10px;
+            padding: 1px 5px;
+            border-radius: 8px;
             display: inline-block;
-            margin-bottom: 3px;
+            margin-bottom: 2px;
             white-space: nowrap;
         }}
         .parent-badge.top {{
@@ -293,18 +318,13 @@ elif menu == "組織図・紹介ツリー":
             background: #e8f5e9;
         }}
         .member-img {{
-            width: 42px;
-            height: 42px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid #4CAF50;
             margin: 0 auto 2px auto;
             display: block;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
         .member-img.no-img {{
-            width: 42px;
-            height: 42px;
             border-radius: 50%;
             background: #e0e0e0;
             display: flex;
@@ -316,7 +336,6 @@ elif menu == "組織図・紹介ツリー":
         }}
         .name {{
             font-weight: bold;
-            font-size: 11px;
             color: #333;
             white-space: nowrap;
             overflow: hidden;
@@ -340,7 +359,7 @@ elif menu == "組織図・紹介ツリー":
     </html>
     """
     
-    components.html(full_html, height=540, scrolling=True)
+    components.html(full_html, height=560, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -380,18 +399,65 @@ elif menu == "組織図・紹介ツリー":
                 else:
                     st.write("（顔写真未登録）")
 
-# --- 3. メンバーの削除・編集 ---
-elif menu == "メンバーの削除・編集":
-    st.subheader("🗑️ メンバーの削除・見直し")
+# --- 3. メンバーの編集・削除 ---
+elif menu == "メンバーの編集・削除":
+    st.subheader("✏️ メンバー情報の編集・削除")
     members = st.session_state["members"]
     if members:
-        member_names = [m["name"] for m in members]
-        target_name = st.selectbox("削除するメンバーを選択", member_names)
+        target_name = st.selectbox("編集・削除するメンバーを選択", [m["name"] for m in members])
+        target_member = next((m for m in members if m["name"] == target_name), None)
         
-        if st.button("選択したメンバーを削除する", type="primary"):
-            st.session_state["members"] = [m for m in members if m["name"] != target_name]
-            save_data(st.session_state["members"])
-            st.success(f"メンバー「{target_name}」を削除しました！")
+        if target_member:
+            with st.form("edit_form"):
+                st.write(f"**【{target_member['name']}】の情報を編集**")
+                new_name = st.text_input("氏名", value=target_member["name"])
+                
+                # 親の選択肢（自分自身は除外）
+                parent_options = {m["id"]: f"{m['name']} ({m['rank']})" for m in members if m["id"] != target_member["id"]}
+                parent_options[0] = "【トップ（最上部）】"
+                
+                current_p_id = target_member.get("parent_id")
+                if current_p_id is None:
+                    current_p_index = list(parent_options.keys()).index(0)
+                else:
+                    current_p_index = list(parent_options.keys()).index(current_p_id) if current_p_id in parent_options else 0
+                
+                selected_parent_id = st.selectbox(
+                    "配置先の親（上位メンバー）を選択", 
+                    options=list(parent_options.keys()), 
+                    index=current_p_index,
+                    format_func=lambda x: parent_options[x]
+                )
+                
+                binary_side_options = ["左", "右"]
+                current_side = target_member.get("binary_side", "左")
+                side_index = binary_side_options.index(current_side) if current_side in binary_side_options else 0
+                new_side = st.selectbox("バイナリー配置（左右）", binary_side_options, index=side_index)
+                
+                ranks = ["メンバー", "サブリーダー", "リーダー"]
+                rank_index = ranks.index(target_member["rank"]) if target_member["rank"] in ranks else 0
+                new_rank = st.selectbox("ランク・タイトル", ranks, index=rank_index)
+                
+                statuses = ["アクティブ", "新規", "休眠"]
+                status_index = statuses.index(target_member["status"]) if target_member["status"] in statuses else 0
+                new_status = st.selectbox("ステータス", statuses, index=status_index)
+                
+                update_submitted = st.form_submit_button("変更を保存する")
+                
+                if update_submitted:
+                    target_member["name"] = new_name
+                    target_member["parent_id"] = None if selected_parent_id == 0 else selected_parent_id
+                    target_member["binary_side"] = None if selected_parent_id == 0 else new_side
+                    target_member["rank"] = new_rank
+                    target_member["status"] = new_status
+                    save_data(members)
+                    st.success(f"メンバー「{new_name}」の情報を更新しました！")
+            
+            st.markdown("---")
+            if st.button("⚠️ このメンバーを削除する", type="primary"):
+                st.session_state["members"] = [m for m in members if m["id"] != target_member["id"]]
+                save_data(st.session_state["members"])
+                st.success(f"メンバー「{target_name}」を削除しました！")
     else:
         st.write("登録されているメンバーはいません。")
 
