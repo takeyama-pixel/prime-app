@@ -127,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 組織図全体HTML保存対応） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 印刷用PDF対応ビュー） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -211,6 +211,7 @@ elif menu == "組織図・紹介ツリー":
     for root in roots:
         tree_lis += render_tree_li(root["id"])
 
+    # 全画面・横スクロールのツリー全体をキレイに1枚のPDF/印刷にするための専用レイアウトスタイル
     full_html = f"""
     <html>
     <head>
@@ -221,15 +222,15 @@ elif menu == "組織図・紹介ツリー":
             background-color: #ffffff;
             margin: 0;
             padding: {pad_val};
-            display: inline-block;
-            min-width: 100%;
+            display: block;
+            width: 100%;
             box-sizing: border-box;
         }}
         .tree-container {{
             display: flex;
             justify-content: center;
-            width: max-content;
-            margin: 0 auto;
+            width: 100%;
+            overflow-x: auto;
         }}
         .tree ul {{
             padding-top: 20px; 
@@ -238,7 +239,7 @@ elif menu == "組織図・紹介ツリー":
             display: flex;
             justify-content: center;
             list-style-type: none;
-            margin: 0;
+            margin: 0 auto;
             padding-left: 0;
         }}
         .tree li {{
@@ -354,9 +355,20 @@ elif menu == "組織図・紹介ツリー":
             font-size: 8px;
             color: #666;
         }}
+        
+        /* 印刷・PDF出力時の最適化設定 */
+        @media print {{
+            body {{
+                background-color: #ffffff;
+            }}
+            .tree-container {{
+                overflow: visible !important;
+            }}
+        }}
     </style>
     </head>
     <body>
+        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 10px; color: #333;">プライム共済 組織図レポート</div>
         <div class="tree-container">
             <div class="tree">
                 <ul>
@@ -371,133 +383,10 @@ elif menu == "組織図・紹介ツリー":
     # 組織図の表示
     components.html(full_html, height=520, scrolling=True)
 
-    st.markdown("### 📄 組織図全体のPDF・ファイル保存")
-    st.write("ボタンを押して組織図全体のファイルをダウンロードすると、スマホやPCのブラウザで全画面表示でき、そのまま完璧なPDFとして保存・印刷できます。")
+    st.markdown("### 📄 組織図のPDF保存・LINE/メール共有")
+    st.write("下のボタンを押すと、**組織図全体が綺麗に収まったPDF保存画面（印刷画面）**が直接開きます。「PDFとして保存」を選択してください。")
     
-    # 全体HTMLをそのままファイルとしてダウンロードできるようにする
-    st.download_button(
-        label="📥 組織図全体を保存する（HTMLファイル）",
-        data=full_html,
-        file_name="prime_organization_tree.html",
-        mime="text/html"
-    )
-
-    st.markdown("---")
-    st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
-    st.write("各メンバーを展開すると、紹介者・備考の確認や顔写真のアップロードができます。")
-    
-    for m in members:
-        parent_name = "トップ"
-        if m.get("parent_id") is not None:
-            p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
-            if p_obj:
-                parent_name = p_obj["name"]
-                
-        side_info = f" / 位置: {m.get('binary_side', '-')}" if m.get('binary_side') else ""
-        
-        with st.expander(f"📌 {m['name']} （上位: {parent_name}{side_info}）"):
-            col_a, col_b = st.columns([2, 1])
-            with col_a:
-                st.write(f"- **ランク:** {m['rank']} | **ステータス:** {m['status']}")
-                st.write(f"- **紹介者:** {m.get('introducer', '（未設定）')}")
-                st.write(f"- **備考:** {m.get('remarks', '（なし）')}")
-                
-                new_count = st.number_input("セミナー参加回数を更新", min_value=0, value=m["seminar_count"], key=f"sem_{m['id']}")
-                if new_count != m["seminar_count"]:
-                    m["seminar_count"] = new_count
-                    save_data(members)
-                
-                uploaded_file = st.file_uploader(f"{m['name']} の顔写真・スクショをアップロード", type=["jpg", "png", "jpeg"], key=f"img_{m['id']}")
-                if uploaded_file:
-                    img_path = os.path.join(UPLOAD_DIR, f"member_{m['id']}.jpg")
-                    with open(img_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
-                    m["image"] = img_path
-                    save_data(members)
-                    st.success("顔写真を保存しました！組織図に反映されます。")
-            
-            with col_b:
-                if m["image"] and os.path.exists(m["image"]):
-                    st.image(m["image"], caption=f"{m['name']} の顔写真", width=120)
-                else:
-                    st.write("（顔写真未登録）")
-
-# --- 3. メンバーの編集・削除 ---
-elif menu == "メンバーの編集・削除":
-    st.subheader("✏️ メンバー情報の編集・削除")
-    members = st.session_state["members"]
-    if members:
-        target_name = st.selectbox("編集・削除するメンバーを選択", [m["name"] for m in members])
-        target_member = next((m for m in members if m["name"] == target_name), None)
-        
-        if target_member:
-            with st.form("edit_form"):
-                st.write(f"**【{target_member['name']}】の情報を編集**")
-                new_name = st.text_input("氏名", value=target_member["name"])
-                
-                parent_options = {m["id"]: f"{m['name']} ({m['rank']})" for m in members if m["id"] != target_member["id"]}
-                parent_options[0] = "【トップ（最上部）】"
-                
-                current_p_id = target_member.get("parent_id")
-                if current_p_id is None:
-                    current_p_index = list(parent_options.keys()).index(0)
-                else:
-                    current_p_index = list(parent_options.keys()).index(current_p_id) if current_p_id in parent_options else 0
-                
-                selected_parent_id = st.selectbox(
-                    "配置先の親（上位メンバー）を選択", 
-                    options=list(parent_options.keys()), 
-                    index=current_p_index,
-                    format_func=lambda x: parent_options[x]
-                )
-                
-                binary_side_options = ["左", "右"]
-                current_side = target_member.get("binary_side", "左")
-                side_index = binary_side_options.index(current_side) if current_side in binary_side_options else 0
-                new_side = st.selectbox("バイナリー配置（左右）", binary_side_options, index=side_index)
-                
-                ranks = ["メンバー", "サブリーダー", "リーダー"]
-                rank_index = ranks.index(target_member["rank"]) if target_member["rank"] in ranks else 0
-                new_rank = st.selectbox("ランク・タイトル", ranks, index=rank_index)
-                
-                statuses = ["アクティブ", "新規", "休眠"]
-                status_index = statuses.index(target_member["status"]) if target_member["status"] in statuses else 0
-                new_status = st.selectbox("ステータス", statuses, index=status_index)
-                
-                new_introducer = st.text_input("紹介者", value=target_member.get("introducer", ""))
-                new_remarks = st.text_area("備考欄・メモ書き", value=target_member.get("remarks", ""))
-                
-                update_submitted = st.form_submit_button("変更を保存する")
-                
-                if update_submitted:
-                    target_member["name"] = new_name
-                    target_member["parent_id"] = None if selected_parent_id == 0 else selected_parent_id
-                    target_member["binary_side"] = None if selected_parent_id == 0 else new_side
-                    target_member["rank"] = new_rank
-                    target_member["status"] = new_status
-                    target_member["introducer"] = new_introducer
-                    target_member["remarks"] = new_remarks
-                    save_data(members)
-                    st.success(f"メンバー「{new_name}」の情報を更新しました！")
-            
-            st.markdown("---")
-            if st.button("⚠️ このメンバーを削除する", type="primary"):
-                st.session_state["members"] = [m for m in members if m["id"] != target_member["id"]]
-                save_data(st.session_state["members"])
-                st.success(f"メンバー「{target_name}」を削除しました！")
-    else:
-        st.write("登録されているメンバーはいません。")
-
-# --- 4. 全体集計 ---
-elif menu == "グループ全体集計":
-    st.subheader("📊 グループ実績・教育ダッシュボード")
-    members = st.session_state["members"]
-    total_members = len(members)
-    total_seminars = sum([m["seminar_count"] for m in members])
-    left_count = len([m for m in members if m.get("binary_side") == "左"])
-    right_count = len([m for m in members if m.get("binary_side") == "右"])
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("総メンバー数", f"{total_members} 名")
-    col2.metric("左右バランス", f"左:{left_count} / 右:{right_count}")
-    col3.metric("総セミナー受講回数", f"{total_seminars} 回")
+    # ブラウザの機能を使って組織図全体をPDFとして出力・印刷するためのボタン
+    pdf_button_html = f"""
+    <html>
+    <head>
