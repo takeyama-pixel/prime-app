@@ -42,7 +42,7 @@ def save_data(members):
         json.dump(members, f, ensure_ascii=False, indent=4)
 
 st.title("プライム共済 組織・教育管理アプリ")
-st.write("マサキ医院長向け / 開発：石川副委員長[cite: 1, 2]")
+st.write("マサキ医院長向け / 開発：石川副委員長")
 
 if "members" not in st.session_state:
     st.session_state["members"] = load_data()
@@ -115,7 +115,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（無限階層対応のHTML/CSS再帰ツリー描画） ---
+# --- 2. 組織図・紹介ツリー（無限階層の再帰ツリー描画） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（無限階層・倍々ツリー構造）")
     st.write("登録されたメンバーが増えても、自動で下層へ無限に枝分かれして広がります。")
@@ -136,11 +136,9 @@ elif menu == "組織図・紹介ツリー":
         side = m.get("binary_side")
         badge = f'<div class="badge {side}">{side}</div>' if side else ''
         
-        # 左右の子要素を検索
         left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
         right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
         
-        # 子がいない場合はここで終端
         if not left_child and not right_child:
             return f"""
             <div class="node-wrapper">
@@ -153,7 +151,6 @@ elif menu == "組織図・紹介ツリー":
             </div>
             """
             
-        # 子がいる場合は再帰的にHTMLを生成してツリー構造を構築
         left_html = render_node_html(left_child["id"]) if left_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
         right_html = render_node_html(right_child["id"]) if right_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
         
@@ -179,7 +176,6 @@ elif menu == "組織図・紹介ツリー":
     for root in roots:
         trees_html += render_node_html(root["id"])
 
-    # 完全なツリー用HTML/CSSテンプレート
     full_html = f"""
     <html>
     <head>
@@ -320,7 +316,6 @@ elif menu == "組織図・紹介ツリー":
     </html>
     """
     
-    # スクロール可能な広大なキャンバスで表示（横スクロール・縦スクロール対応）
     components.html(full_html, height=500, scrolling=True)
 
     st.markdown("---")
@@ -371,7 +366,7 @@ elif menu == "メンバーの削除・編集":
         
         if st.button("選択したメンバーを削除する", type="primary"):
             st.session_state["members"] = [m for m in members if m["name"] != target_name]
-            save_data(members)
+            save_data(st.session_state["members"])
             st.success(f"メンバー「{target_name}」を削除しました！")
     else:
         st.write("登録されているメンバーはいません。")
@@ -383,7 +378,7 @@ elif menu == "グループ全体集計":
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
     left_count = len([m for m in members if m.get("binary_side") == "左"])
-    right_count = len([m for m in members if m.get("binary_side"] == "右"])
+    right_count = len([m for m in members if m.get("binary_side") == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
