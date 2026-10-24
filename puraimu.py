@@ -177,8 +177,8 @@ elif menu == "組織図・紹介ツリー":
         else:
             parent_info = '<div class="parent-badge top">トップ階層</div>'
         
-        left_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "左"), None)
-        right_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "右"), None)
+        left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
+        right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
         
         card_html = f"""
         <div class="node-card" style="width: {current_card_width}; background: {highlight_bg};">
