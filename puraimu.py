@@ -136,7 +136,6 @@ elif menu == "組織図・紹介ツリー":
         badge_color = "#1565c0" if side_label == "左" else "#d84315"
         badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:9px; display:inline-block; margin-top:1px; font-weight:bold;">{side_label}</div>' if side_label else ''
         
-        # 四角い外枠を完全に排除し、すっきりしたデザインに
         return f"""
         <div style="text-align: center; width: 110px; margin: 0 auto; background: transparent;">
             {img_tag}
@@ -167,7 +166,6 @@ elif menu == "組織図・紹介ツリー":
         sub_r_l_html = make_card(sub_r_l, "左")
         sub_r_r_html = make_card(sub_r_r, "右")
 
-        # 完全に左右のズレをなくした左右対称ツリーHTML
         tree_html = f"""
         <html>
         <head>
@@ -215,11 +213,9 @@ elif menu == "組織図・紹介ツリー":
         </head>
         <body>
             <div class="tree-container">
-                <!-- トップ -->
                 <div style="margin-bottom: 3px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ</div>
                 <div style="margin-bottom: 8px;">{top_html}</div>
                 
-                <!-- 1段目への枝分かれ -->
                 <div class="line-v"></div>
                 <div class="line-h" style="margin-bottom: 8px;"></div>
                 
@@ -228,7 +224,6 @@ elif menu == "組織図・紹介ツリー":
                     <div class="node-box">{right_html}</div>
                 </div>
                 
-                <!-- 2段目（孫世代）への接続線 -->
                 <div class="level-row" style="margin-bottom: 4px;">
                     <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
                     <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
@@ -238,7 +233,6 @@ elif menu == "組織図・紹介ツリー":
                     <div class="node-box"><div style="width: 120px; height: 2px; background: #ccc;"></div></div>
                 </div>
                 
-                <!-- 2段目（孫世代4人：倍々） -->
                 <div class="level-row">
                     <div class="node-box" style="display: flex; justify-content: space-around; width: 100%;">
                         <div style="transform: scale(0.9);">{sub_l_l_html}</div>
@@ -315,8 +309,8 @@ elif menu == "グループ全体集計":
     members = st.session_state["members"]
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
-    left_count = len([m for m in members if m.get("binary_side"] == "左"])
-    right_count = len([m for m in members if m.get("binary_side"] == "右"])
+    left_count = len([m for m in members if m.get("binary_side") == "左"])
+    right_count = len([m for m in members if m.get("binary_side") == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
