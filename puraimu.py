@@ -27,7 +27,6 @@ def load_data():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if data and "parent_id" in data[0]:
-                    # 既存データに新項目がない場合の互換性対応
                     for m in data:
                         if "introducer" not in m:
                             m["introducer"] = ""
@@ -48,7 +47,7 @@ def save_data(members):
         json.dump(members, f, ensure_ascii=False, indent=4)
 
 st.title("プライム共済 組織・教育管理アプリ")
-st.write("マサキ医院長向け / 開発：石川副委員長")
+st.write("マサキ医院長向け / 開発：石川副委員長[cite: 1, 2]")
 
 if "members" not in st.session_state:
     st.session_state["members"] = load_data()
@@ -80,7 +79,6 @@ if menu == "新規メンバー登録":
         status = st.selectbox("ステータス", ["アクティブ", "新規", "休眠"])
         seminar_count = st.number_input("セミナー参加回数", min_value=0, value=0)
         
-        # 追加項目
         introducer = st.text_input("紹介者（自由入力）")
         remarks = st.text_area("備考欄・メモ書き")
         
@@ -129,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード対応） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ PDF出力機能搭載） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -179,8 +177,8 @@ elif menu == "組織図・紹介ツリー":
         else:
             parent_info = '<div class="parent-badge top">👑 トップ階層</div>'
         
-        left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
-        right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
+        left_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "左"), None)
+        right_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "右"), None)
         
         card_html = f"""
         <div class="node-card" style="width: {current_card_width}; background: {highlight_bg};">
@@ -220,7 +218,7 @@ elif menu == "組織図・紹介ツリー":
     <style>
         body {{
             font-family: Meiryo, sans-serif;
-            background-color: transparent;
+            background-color: #ffffff;
             margin: 0;
             padding: {pad_val};
             display: inline-block;
@@ -370,7 +368,17 @@ elif menu == "組織図・紹介ツリー":
     </html>
     """
     
-    components.html(full_html, height=560, scrolling=True)
+    # 組織図の表示 ＆ ワンクリックPDF出力ボタン（ブラウザの印刷機能を利用して綺麗にPDF化）
+    components.html(full_html, height=520, scrolling=True)
+
+    st.markdown("### 📄 組織図のPDF保存・共有")
+    st.write("ボタンを押すと印刷・PDF保存ダイアログが開き、スマホやPCから1枚の資料としてPDF保存できます。")
+    if st.button("🖨️ 組織図をPDF保存・印刷する"):
+        components.html("""
+        <script>
+            window.parent.print();
+        </script>
+        """, height=0)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -454,7 +462,6 @@ elif menu == "メンバーの編集・削除":
                 status_index = statuses.index(target_member["status"]) if target_member["status"] in statuses else 0
                 new_status = st.selectbox("ステータス", statuses, index=status_index)
                 
-                # 追加項目の編集
                 new_introducer = st.text_input("紹介者", value=target_member.get("introducer", ""))
                 new_remarks = st.text_area("備考欄・メモ書き", value=target_member.get("remarks", ""))
                 
@@ -485,8 +492,8 @@ elif menu == "グループ全体集計":
     members = st.session_state["members"]
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
-    left_count = len([m for m in members if m.get("binary_side") == "左"])
-    right_count = len([m for m in members if m.get("binary_side") == "右"])
+    left_count = len([m for m in members if m.get("binary_side"] == "左"])
+    right_count = len([m for m in members if m.get("binary_side"] == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
