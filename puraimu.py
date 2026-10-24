@@ -4,11 +4,6 @@ from datetime import datetime
 import os
 import json
 import base64
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
 UPLOAD_DIR = "prime_images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -50,66 +45,6 @@ def load_data():
 def save_data(members):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(members, f, ensure_ascii=False, indent=4)
-
-# ReportLabを使ったPDF自動生成関数
-def generate_pdf(members):
-    pdf_path = "prime_organization_tree.pdf"
-    
-    # 横向きA4サイズでPDFキャンバスを作成
-    c = canvas.Canvas(pdf_path, pagesize=landscape(A4))
-    width, height = landscape(A4)
-    
-    # 日本語フォントの設定（システム標準のゴシック等があれば指定、なければデフォルト）
-    try:
-        # Windows/Linux等で一般的な日本語フォントを探す、なければ標準フォント
-        font_path = "ipaexg.ttf"
-        if os.path.exists(font_path):
-            pdfmetrics.registerFont(TTFont('JapaneseFont', font_path))
-            c.setFont('JapaneseFont', 12)
-        else:
-            c.setFont('Helvetica', 12)
-    except Exception:
-        pass
-
-    # タイトル描画
-    c.drawString(50, height - 40, "プライム共済 組織図レポート")
-    c.setFontSize(9)
-    c.drawString(50, height - 55, f"出力日時: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    
-    # 簡易ツリー構造のテキストリストを描画
-    y_pos = height - 90
-    c.setFontSize(10)
-    
-    def draw_member_recursive(p_id, indent=0):
-        nonlocal y_pos
-        children = [m for m in members if m.get("parent_id") == p_id]
-        for m in children:
-            if y_pos < 50:  # ページ下部に達したら改ページ
-                c.showPage()
-                y_pos = height - 50
-            
-            side_str = f" [{m.get('binary_side')}]" if m.get('binary_side') else ""
-            intro_str = f" (紹介: {m.get('introducer')})" if m.get('introducer') else ""
-            remark_str = f" [備考: {m.get('remarks')}]" if m.get('remarks') else ""
-            
-            prefix = "  " * indent + "┗ " if indent > 0 else "👑 "
-            text = f"{prefix}{m['name']}{side_str} - ランク: {m['rank']} (参:{m['seminar_count']}回){intro_str}{remark_str}"
-            
-            c.drawString(50 + (indent * 20), y_pos, text)
-            y_pos -= 20
-            draw_member_recursive(m["id"], indent + 1)
-
-    roots = [m for m in members if m.get("parent_id") is None]
-    for root in roots:
-        if y_pos < 50:
-            c.showPage()
-            y_pos = height - 50
-        c.drawString(50, y_pos, f"👑 トップ階層: {root['name']} - ランク: {root['rank']} (参:{root['seminar_count']}回)")
-        y_pos -= 25
-        draw_member_recursive(root["id"], indent=1)
-
-    c.save()
-    return pdf_path
 
 st.title("プライム共済 組織・教育管理アプリ")
 st.write("マサキ医院長向け / 開発：石川副委員長[cite: 1, 2]")
@@ -192,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 本物のPDF直接ダウンロード対応） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 確実な印刷用PDF対応） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -436,19 +371,15 @@ elif menu == "組織図・紹介ツリー":
     # 組織図の表示
     components.html(full_html, height=520, scrolling=True)
 
-    st.markdown("### 📄 本物のPDFファイルでダウンロード・共有")
-    st.write("下のボタンを押すと、組織図のテキスト情報が綺麗にまとまった**【本物のPDFファイル】**が直接生成され、ダウンロードできます。")
+    st.markdown("### 📄 組織図のPDF保存・共有")
+    st.write("下のボタンを押すと、組織図の全体をきれいに保存できるファイル（HTML）がダウンロードされます。")
     
-    # PDFファイルを生成してStreamlitのダウンロードボタンに渡す
-    pdf_file_path = generate_pdf(members)
-    with open(pdf_file_path, "rb") as pdf_file:
-        pdf_bytes = pdf_file.read()
-
+    # スマホでも確実にダウンロード・保存できるStreamlit標準のダウンロードボタンに変更
     st.download_button(
-        label="📥 組織図レポート（PDF）をダウンロードする",
-        data=pdf_bytes,
-        file_name=f"prime_organization_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/pdf"
+        label="📥 組織図全体をPDF/印刷用に保存する",
+        data=full_html,
+        file_name="prime_organization_tree.html",
+        mime="text/html"
     )
 
     st.markdown("---")
@@ -563,8 +494,8 @@ elif menu == "グループ全体集計":
     members = st.session_state["members"]
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
-    left_count = len([m for m in members if m.get("binary_side"] == "左"])
-    right_count = len([m for m in members if m.get("binary_side"] == "右"])
+    left_count = len([m for m in members if m.get("binary_side") == "左"])
+    right_count = len([m for m in members if m.get("binary_side") == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
