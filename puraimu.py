@@ -115,16 +115,16 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（HTMLコンポーネントによる確実な表示） ---
+# --- 2. 組織図・紹介ツリー（枠なし・左右対称バイナリー表示） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（顔写真付き・左右2系列）")
-    st.write("トップを起点に、左系列と右系列が左右に分かれるツリー構造です。")
+    st.subheader("🌳 バイナリー組織図（倍々ツリー構造）")
+    st.write("トップから左右にきれいに枝分かれする組織図です。")
     
     members = st.session_state["members"]
     
     def make_card(m, side_label=""):
         if not m:
-            return '<div style="width: 110px; height: 85px; border: 2px dashed #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px; background: #fafafa; margin: 0 auto;">（未配置）</div>'
+            return '<div style="width: 100px; height: 75px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 10px; margin: 0 auto;">未配置</div>'
             
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
@@ -134,10 +134,11 @@ elif menu == "組織図・紹介ツリー":
         
         badge_bg = "#e3f2fd" if side_label == "左" else "#fbe9e7"
         badge_color = "#1565c0" if side_label == "左" else "#d84315"
-        badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:9px; display:inline-block; margin-top:1px; font-weight:bold;">{side_label}系列</div>' if side_label else ''
+        badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:9px; display:inline-block; margin-top:1px; font-weight:bold;">{side_label}</div>' if side_label else ''
         
+        # 四角い外枠を完全に排除し、すっきりしたデザインに
         return f"""
-        <div style="border: 2px solid #d0d0d0; border-radius: 10px; padding: 5px; text-align: center; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.08); width: 120px; margin: 0 auto;">
+        <div style="text-align: center; width: 110px; margin: 0 auto; background: transparent;">
             {img_tag}
             <div style="font-weight: bold; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
             <div style="font-size: 9px; color: #666;">{m['rank']} (参:{m['seminar_count']}回)</div>
@@ -166,7 +167,7 @@ elif menu == "組織図・紹介ツリー":
         sub_r_l_html = make_card(sub_r_l, "左")
         sub_r_r_html = make_card(sub_r_r, "右")
 
-        # 完全なHTMLとしてコンポーネント化（文字漏れを完全に防止）
+        # 完全に左右のズレをなくした左右対称ツリーHTML
         tree_html = f"""
         <html>
         <head>
@@ -176,66 +177,76 @@ elif menu == "組織図・紹介ツリー":
                 font-family: Meiryo, sans-serif;
                 background-color: transparent;
                 margin: 0;
-                padding: 10px;
+                padding: 5px;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
             }}
-            .node-container {{
+            .tree-container {{
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 width: 100%;
+                max-width: 400px;
             }}
-            .branch-line-v {{
+            .line-v {{
                 width: 2px;
                 height: 15px;
-                background-color: #999;
+                background-color: #bbb;
             }}
-            .branch-line-h {{
-                width: 200px;
+            .line-h {{
+                width: 240px;
                 height: 2px;
-                background-color: #999;
+                background-color: #bbb;
             }}
-            .row {{
+            .level-row {{
                 display: flex;
-                justify-content: space-around;
+                justify-content: space-between;
                 width: 100%;
-                max-width: 320px;
+                padding: 0 10px;
+                box-sizing: border-box;
             }}
-            .col {{
+            .node-box {{
                 flex: 1;
-                text-align: center;
-                padding: 0 4px;
+                display: flex;
+                justify-content: center;
             }}
         </style>
         </head>
         <body>
-            <div class="node-container">
-                <div style="margin-bottom: 4px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ</div>
-                <div style="margin-bottom: 10px;">{top_html}</div>
+            <div class="tree-container">
+                <!-- トップ -->
+                <div style="margin-bottom: 3px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ</div>
+                <div style="margin-bottom: 8px;">{top_html}</div>
                 
-                <div class="branch-line-v"></div>
-                <div class="branch-line-h" style="margin-bottom: 10px;"></div>
+                <!-- 1段目への枝分かれ -->
+                <div class="line-v"></div>
+                <div class="line-h" style="margin-bottom: 8px;"></div>
                 
-                <div class="row" style="margin-bottom: 10px;">
-                    <div class="col">{left_html}</div>
-                    <div class="col">{right_html}</div>
+                <div class="level-row" style="margin-bottom: 12px;">
+                    <div class="node-box">{left_html}</div>
+                    <div class="node-box">{right_html}</div>
                 </div>
                 
-                <div class="row" style="margin-bottom: 5px;">
-                    <div class="col"><div style="margin: 0 auto; width: 2px; height: 12px; background: #999;"></div></div>
-                    <div class="col"><div style="margin: 0 auto; width: 2px; height: 12px; background: #999;"></div></div>
+                <!-- 2段目（孫世代）への接続線 -->
+                <div class="level-row" style="margin-bottom: 4px;">
+                    <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
+                    <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
+                </div>
+                <div class="level-row" style="margin-bottom: 8px;">
+                    <div class="node-box"><div style="width: 120px; height: 2px; background: #ccc;"></div></div>
+                    <div class="node-box"><div style="width: 120px; height: 2px; background: #ccc;"></div></div>
                 </div>
                 
-                <div class="row">
-                    <div class="col" style="display: flex; justify-content: space-around;">
-                        <div style="transform: scale(0.85);">{sub_l_l_html}</div>
-                        <div style="transform: scale(0.85);">{sub_l_r_html}</div>
+                <!-- 2段目（孫世代4人：倍々） -->
+                <div class="level-row">
+                    <div class="node-box" style="display: flex; justify-content: space-around; width: 100%;">
+                        <div style="transform: scale(0.9);">{sub_l_l_html}</div>
+                        <div style="transform: scale(0.9);">{sub_l_r_html}</div>
                     </div>
-                    <div class="col" style="display: flex; justify-content: space-around;">
-                        <div style="transform: scale(0.85);">{sub_r_l_html}</div>
-                        <div style="transform: scale(0.85);">{sub_r_r_html}</div>
+                    <div class="node-box" style="display: flex; justify-content: space-around; width: 100%;">
+                        <div style="transform: scale(0.9);">{sub_r_l_html}</div>
+                        <div style="transform: scale(0.9);">{sub_r_r_html}</div>
                     </div>
                 </div>
             </div>
@@ -243,8 +254,7 @@ elif menu == "組織図・紹介ツリー":
         </html>
         """
         
-        # Streamlitのコンポーネントとして安全に出力（文字漏れしない）
-        components.html(tree_html, height=340, scrolling=True)
+        components.html(tree_html, height=350, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -305,8 +315,8 @@ elif menu == "グループ全体集計":
     members = st.session_state["members"]
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
-    left_count = len([m for m in members if m.get("binary_side") == "左"])
-    right_count = len([m for m in members if m.get("binary_side") == "右"])
+    left_count = len([m for m in members if m.get("binary_side"] == "左"])
+    right_count = len([m for m in members if m.get("binary_side"] == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
