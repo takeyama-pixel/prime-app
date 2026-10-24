@@ -47,7 +47,7 @@ def save_data(members):
         json.dump(members, f, ensure_ascii=False, indent=4)
 
 st.title("プライム共済 組織・教育管理アプリ")
-st.write("マサキ医院長向け / 開発：石川副委員長")
+st.write("マサキ医院長向け / 開発：石川副委員長[cite: 1, 2]")
 
 if "members" not in st.session_state:
     st.session_state["members"] = load_data()
@@ -127,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ PDF出力機能搭載） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 組織図全体HTML保存対応） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -368,16 +368,19 @@ elif menu == "組織図・紹介ツリー":
     </html>
     """
     
+    # 組織図の表示
     components.html(full_html, height=520, scrolling=True)
 
-    st.markdown("### 📄 組織図のPDF保存・共有")
-    st.write("ボタンを押すと印刷・PDF保存ダイアログが開き、スマホやPCから1枚の資料としてPDF保存できます。")
-    if st.button("🖨️ 組織図をPDF保存・印刷する"):
-        components.html("""
-        <script>
-            window.parent.print();
-        </script>
-        """, height=0)
+    st.markdown("### 📄 組織図全体のPDF・ファイル保存")
+    st.write("ボタンを押して組織図全体のファイルをダウンロードすると、スマホやPCのブラウザで全画面表示でき、そのまま完璧なPDFとして保存・印刷できます。")
+    
+    # 全体HTMLをそのままファイルとしてダウンロードできるようにする
+    st.download_button(
+        label="📥 組織図全体を保存する（HTMLファイル）",
+        data=full_html,
+        file_name="prime_organization_tree.html",
+        mime="text/html"
+    )
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
