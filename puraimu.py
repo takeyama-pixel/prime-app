@@ -390,3 +390,156 @@ elif menu == "組織図・紹介ツリー":
     pdf_button_html = f"""
     <html>
     <head>
+    <meta charset="utf-8">
+    <style>
+        .pdf-btn {{
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-family: Meiryo, sans-serif;
+        }}
+        .pdf-btn:hover {{
+            background-color: #45a049;
+        }}
+    </style>
+    </head>
+    <body style="margin:0; background:transparent;">
+        <button class="pdf-btn" onclick="
+            var win = window.open('', '_blank');
+            win.document.write(`{full_html.replace('`', '\\`')}`);
+            win.document.close();
+            setTimeout(function(){{ win.print(); }}, 500);
+        ">🖨️ 組織図全体をPDF保存・印刷する</button>
+    </body>
+    </html>
+    """
+    components.html(pdf_button_html, height=60, scrolling=False)
+
+    st.markdown("---")
+    st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
+    st.write("各メンバーを展開すると、紹介者・備考の確認や顔写真のアップロードができます。")
+    
+    for m in members:
+        parent_name = "トップ"
+        if m.get("parent_id") is not None:
+            p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
+            if p_obj:
+                parent_name = p_obj["name"]
+                
+        side_info = f" / 位置: {m.get('binary_side', '-')}" if m.get('binary_side') else ""
+        
+        with st.expander(f"📌 {m['name']} （上位: {parent_name}{side_info}）"):
+            col_a, col_b = st.columns([2, 1])
+            with col_a:
+                st.write(f"- **ランク:** {m['rank']} | **ステータス:** {m['status']}")
+                st.write(f"- **紹介者:** {m.get('introducer', '（未設定）')}")
+                st.write(f"- **備考:** {m.get('remarks', '（なし）')}")
+                
+                new_count = st.number_input("セミナー参加回数を更新", min_value=0, value=m["seminar_count"], key=f"sem_{m['id']}")
+                if new_count != m["seminar_count"]:
+                    m["seminar_count"] = new_count
+                    save_data(members)
+                
+                uploaded_file = st.file_uploader(f"{m['name']} の顔写真・スクショをアップロード", type=["jpg", "png", "jpeg"], key=f"img_{m['id']}")
+                if uploaded_file:
+                    img_path = os.path.join(UPLOAD_DIR, f"member_{m['id']}.jpg")
+                    with open(img_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                    m["image"] = img_path
+                    save_data(members)
+                    st.success("顔写真を保存しました！組織図に反映されます。")
+            
+            with col_b:
+                if m["image"] and os.path.exists(m["image"]):
+                    st.image(m["image"], caption=f"{m['name']} の顔写真", width=120)
+                else:
+                    st.write("（顔写真未登録）")
+
+# --- 3. メンバーの編集・削除 ---
+elif menu == "メンバーの編集・削除":
+    st.subheader("✏️ メンバー情報の編集・削除")
+    members = st.session_state["members"]
+    if members:
+        target_name = st.selectbox("編集・削除するメンバーを選択", [m["name"] for m in members])
+        target_member = next((m for m in members if m["name"] == target_name), None)
+        
+        if target_member:
+            with st.form("edit_form"):
+                st.write(f"**【{target_member['name']}】の情報を編集**")
+                new_name = st.text_input("氏名", value=target_member["name"])
+                
+                parent_options = {m["id"]: f"{m['name']} ({m['rank']})" for m in members if m["id"] != target_member["id"]}
+                parent_options[0] = "【トップ（最上部）】"
+                
+                current_p_id = target_member.get("parent_id")
+                if current_p_id is None:
+                    current_p_index = list(parent_options.keys()).index(0)
+                else:
+                    current_p_index = list(parent_options.keys()).index(current_p_id) if current_p_id in parent_options else 0
+                
+                selected_parent_id = st.selectbox(
+                    "配置先の親（上位メンバー）を選択", 
+                    options=list(parent_options.keys()), 
+                    index=current_p_index,
+                    format_func=lambda x: parent_options[x]
+                )
+                
+                binary_side_options = ["左", "右"]
+                current_side = target_member.get("binary_side", "左")
+                side_index = binary_side_options.index(current_side) if current_side in binary_side_options else 0
+                new_side = st.selectbox("バイナリー配置（左右）", binary_side_options, index=side_index)
+                
+                ranks = ["メンバー", "サブリーダー", "リーダー"]
+                rank_index = ranks.index(target_member["rank"]) if target_member["rank"] in ranks else 0
+                new_rank = st.selectbox("ランク・タイトル", ranks, index=rank_index)
+                
+                statuses = ["アクティブ", "新規", "休眠"]
+                status_index = statuses.index(target_member["status"]) if target_member["status"] in statuses else 0
+                new_status = st.selectbox("ステータス", statuses, index=status_index)
+                
+                new_introducer = st.text_input("紹介者", value=target_member.get("introducer", ""))
+                new_remarks = st.text_area("備考欄・メモ書き", value=target_member.get("remarks", ""))
+                
+                update_submitted = st.form_submit_button("変更を保存する")
+                
+                if update_submitted:
+                    target_member["name"] = new_name
+                    target_member["parent_id"] = None if selected_parent_id == 0 else selected_parent_id
+                    target_member["binary_side"] = None if selected_parent_id == 0 else new_side
+                    target_member["rank"] = new_rank
+                    target_member["status"] = new_status
+                    target_member["introducer"] = new_introducer
+                    target_member["remarks"] = new_remarks
+                    save_data(members)
+                    st.success(f"メンバー「{new_name}」の情報を更新しました！")
+            
+            st.markdown("---")
+            if st.button("⚠️ このメンバーを削除する", type="primary"):
+                st.session_state["members"] = [m for m in members if m["id"] != target_member["id"]]
+                save_data(st.session_state["members"])
+                st.success(f"メンバー「{target_name}」を削除しました！")
+    else:
+        st.write("登録されているメンバーはいません。")
+
+# --- 4. 全体集計 ---
+elif menu == "グループ全体集計":
+    st.subheader("📊 グループ実績・教育ダッシュボード")
+    members = st.session_state["members"]
+    total_members = len(members)
+    total_seminars = sum([m["seminar_count"] for m in members])
+    left_count = len([m for m in members if m.get("binary_side") == "左"])
+    right_count = len([m for m in members if m.get("binary_side") == "右"])
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("総メンバー数", f"{total_members} 名")
+    col2.metric("左右バランス", f"左:{left_count} / 右:{right_count}")
+    col3.metric("総セミナー受講回数", f"{total_seminars} 回")
