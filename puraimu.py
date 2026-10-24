@@ -93,7 +93,7 @@ if menu == "新規メンバー登録":
                 if p_id is not None:
                     existing = [m for m in members if m.get("parent_id") == p_id and m.get("binary_side") == binary_side]
                     if existing:
-                        st.error(f"エラー: 選択した親のサイドにはすでにメンバーが配置されています！")
+                        st.error("エラー: 選択した親のサイドにはすでにメンバーが配置されています！")
                     else:
                         new_id = max([m["id"] for m in members], default=0) + 1
                         members.append({
@@ -127,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー {name} を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ ブラウザ印刷PDF対応） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 安全なダウンロード保存対応） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -177,8 +177,8 @@ elif menu == "組織図・紹介ツリー":
         else:
             parent_info = '<div class="parent-badge top">トップ階層</div>'
         
-        left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
-        right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
+        left_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "左"), None)
+        right_child = next((item for item in members if item.get("parent_id"] == m["id"] and item.get("binary_side") == "右"), None)
         
         card_html = f"""
         <div class="node-card" style="width: {current_card_width}; background: {highlight_bg};">
@@ -371,28 +371,16 @@ elif menu == "組織図・紹介ツリー":
     # 組織図の表示
     components.html(full_html, height=520, scrolling=True)
 
-    st.markdown("### 組織図のPDF保存・LINE共有")
-    st.write("下のボタンを押すと、組織図全体が綺麗に収まった専用の印刷・PDF保存画面が開きます。")
+    st.markdown("### 組織図のPDF・印刷用ファイル保存")
+    st.write("下のボタンを押すと、組織図全体が綺麗に収まったファイルがスマホにダウンロードされます。それを開いて印刷・PDF保存してください。")
     
-    b64_html = base64.b64encode(full_html.encode('utf-8')).decode('utf-8')
-    pdf_link_html = f"""
-    <div style="text-align: center; margin: 10px 0;">
-        <a href="data:text/html;base64,{b64_html}" target="_blank" style="
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            font-family: Meiryo, sans-serif;
-        ">組織図全体をPDF保存・印刷する画面を開く</a>
-    </div>
-    """
-    st.markdown(pdf_link_html, unsafe_allow_html=True)
+    # 真っ白にならない確実なStreamlit標準のダウンロードボタンを使用
+    st.download_button(
+        label="組織図全体をファイルとして保存する",
+        data=full_html,
+        file_name=f"prime_tree_{datetime.now().strftime('%Y%m%d')}.html",
+        mime="text/html"
+    )
 
     st.markdown("---")
     st.subheader("メンバー詳細 ＆ 写真・セミナー回数管理")
