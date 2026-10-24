@@ -243,7 +243,7 @@ elif menu == "組織図・紹介ツリー":
         .tree li:last-child::before {{
             border-right: 2px solid #aaa;
             border-radius: 0 6px 0 0;
-        }
+        }}
         .tree li:first-child::after {{
             border-radius: 6px 0 0 0;
         }}
@@ -348,7 +348,7 @@ elif menu == "組織図・紹介ツリー":
     
     for m in members:
         parent_name = "トップ"
-        if m.get("parent_id"):
+        if m.get("parent_id") is not None:
             p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
             if p_obj:
                 parent_name = p_obj["name"]
