@@ -16,11 +16,12 @@ def load_data():
                 return json.load(f)
         except Exception:
             pass
-    # 初期データ
+    # 初期データ（ツリーのつながりが見えやすいように設定）
     return [
-        {"id": 1, "name": "山田 太郎", "upline": "マサキ（自分）", "binary_pos": "左（Left）", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
-        {"id": 2, "name": "佐藤 花子", "upline": "山田 太郎", "binary_pos": "右（Right）", "rank": "メンバー", "status": "アクティブ", "seminar_count": 1, "image": ""},
-        {"id": 3, "name": "鈴木 一郎", "upline": "マサキ（自分）", "binary_pos": "右（Right）", "rank": "サブリーダー", "status": "休眠", "seminar_count": 0, "image": ""},
+        {"id": 1, "name": "大西 真由美", "upline": "トップ（頂点）", "binary_pos": "左（Left）", "rank": "リーダー", "status": "アクティブ", "seminar_count": 5, "image": ""},
+        {"id": 2, "name": "山田 太郎", "upline": "大西 真由美", "binary_pos": "左（Left）", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
+        {"id": 3, "name": "佐藤 花子", "upline": "山田 太郎", "binary_pos": "右（Right）", "rank": "メンバー", "status": "アクティブ", "seminar_count": 1, "image": ""},
+        {"id": 4, "name": "鈴木 一郎", "upline": "大西 真由美", "binary_pos": "右（Right）", "rank": "サブリーダー", "status": "休眠", "seminar_count": 0, "image": ""},
     ]
 
 # データの保存関数
@@ -38,7 +39,7 @@ if "members" not in st.session_state:
 # サイドメニュー
 menu = st.sidebar.selectbox("メニュー選択", ["組織図・紹介ツリー", "新規メンバー登録", "メンバーの削除・編集", "グループ全体集計"])
 
-# --- 1. 新規メンバー登録（写真アップ対応） ---
+# --- 1. 新規メンバー登録 ---
 if menu == "新規メンバー登録":
     st.subheader("➕ 新規メンバーの追加・登録")
     
@@ -46,7 +47,7 @@ if menu == "新規メンバー登録":
         name = st.text_input("メンバー氏名")
         
         # 紹介者（ユニレベル・アップ）の候補
-        upline_list = ["マサキ（自分）"] + [m["name"] for m in st.session_state["members"]]
+        upline_list = ["大西 真由美"] + [m["name"] for m in st.session_state["members"]]
         upline = st.selectbox("紹介者（ユニレベル・アップ）", upline_list)
         
         # バイナリーの配置
@@ -78,46 +79,37 @@ if menu == "新規メンバー登録":
 
 # --- 2. 組織図・紹介ツリー ＆ 写真管理 ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 組織図（バイナリー ＆ ユニレベル紹介系列）")
+    st.subheader("🌳 組織図（紹介ツリー・全体俯瞰）")
+    st.write("ピンチイン・アウト（拡大・縮小）して全体のつながりを確認できます。")
     
-    # バイナリーの左右表示
-    col1, col2 = st.columns(2)
+    # Graphviz（ツリー図）の構築
+    dot_code = """
+    digraph {
+        graph [rankdir = "TB", nodesep=0.5, ranksep=0.8, bgcolor="transparent"];
+        node [fontname="Meiryo", shape=box, style="rounded,filled", fillcolor="#f0f2f6", fontcolor="#262730", margin=0.2];
+        edge [color="#999999"];
+    """
     
-    with col1:
-        st.markdown("### 🔵 バイナリー：左系列 (Left)")
-        left_members = [m for m in st.session_state["members"] if m["binary_pos"] == "左（Left）"]
-        if left_members:
-            for m in left_members:
-                cols = st.columns([1, 3])
-                with cols[0]:
-                    if m['image'] and os.path.exists(m['image']):
-                        st.image(m['image'], width=60)
-                    else:
-                        st.write("👤")
-                with cols[1]:
-                    st.info(f"**{m['name']}** \n\n (紹介: {m['upline']} / {m['rank']} / 参加:{m['seminar_count']}回)")
-        else:
-            st.write("（まだ登録されていません）")
-            
-    with col2:
-        st.markdown("### 🔴 バイナリー：右系列 (Right)")
-        right_members = [m for m in st.session_state["members"] if m["binary_pos"] == "右（Right）"]
-        if right_members:
-            for m in right_members:
-                cols = st.columns([1, 3])
-                with cols[0]:
-                    if m['image'] and os.path.exists(m['image']):
-                        st.image(m['image'], width=60)
-                    else:
-                        st.write("👤")
-                with cols[1]:
-                    st.warning(f"**{m['name']}** \n\n (紹介: {m['upline']} / {m['rank']} / 参加:{m['seminar_count']}回)")
-        else:
-            st.write("（まだ登録されていません）")
+    for m in st.session_state["members"]:
+        label = f"{m['name']}\\n({m['rank']} / 参:{m['seminar_count']}回)"
+        # メンバーごとにノードを追加
+        dot_code += f'    "{m["id"]}" [label="{label}"];\n'
+        
+        # 紹介者との結びつき（エッジ）を作る
+        if m["upline"] != "トップ（頂点）":
+            # uplineの名前からIDを探す
+            parent = next((item for item in st.session_state["members"] if item["name"] == m["upline"]), None)
+            if parent:
+                dot_code += f'    "{parent["id"]}" -> "{m["id"]}";\n'
+                
+    dot_code += "}"
+    
+    # ツリー図を描画（スマホで拡大縮小可能）
+    st.graphviz_chart(dot_code)
 
     st.markdown("---")
-    st.subheader("📋 紹介系列（ユニレベル）ツリー・詳細 ＆ 写真管理")
-    st.write("各メンバーを展開すると、紹介のつながりの確認や、写真のアップロードができます。")
+    st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
+    st.write("各メンバーを展開すると、写真のアップロードや情報の変更ができます。")
     
     for m in st.session_state["members"]:
         with st.expander(f"📌 {m['name']} （紹介者: {m['upline']} / 位置: {m['binary_pos']}）"):
