@@ -115,10 +115,10 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（無限階層の再帰ツリー描画） ---
+# --- 2. 組織図・紹介ツリー（横スクロール完全対応・ズレ調整済みツリー） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（無限階層・倍々ツリー構造）")
-    st.write("登録されたメンバーが増えても、自動で下層へ無限に枝分かれして広がります。")
+    st.subheader("🌳 バイナリー組織図（無限階層・全体俯瞰ツリー）")
+    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
     
     members = st.session_state["members"]
     
@@ -185,32 +185,32 @@ elif menu == "組織図・紹介ツリー":
             font-family: Meiryo, sans-serif;
             background-color: transparent;
             margin: 0;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            padding: 20px 40px;
+            /* 左右どちらにも無制限にスクロールできるよう余白と幅を確保 */
+            display: inline-block;
+            min-width: 100%;
         }}
         .tree-root {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 100%;
-            overflow-x: auto;
+            width: max-content;
+            margin: 0 auto;
         }}
         .node-wrapper {{
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
-            margin: 0 4px;
+            margin: 0 6px;
         }}
         .node-card {{
             text-align: center;
-            width: 100px;
+            width: 105px;
             background: white;
-            padding: 4px;
+            padding: 5px;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
             z-index: 2;
         }}
         .node-card.empty {{
@@ -225,8 +225,8 @@ elif menu == "組織図・紹介ツリー":
             background: #fafafa;
         }}
         .member-img {{
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #4CAF50;
@@ -234,8 +234,8 @@ elif menu == "組織図・紹介ツリー":
             display: block;
         }}
         .member-img.no-img {{
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             background: #e0e0e0;
             display: flex;
@@ -259,7 +259,7 @@ elif menu == "組織図・紹介ツリー":
         }}
         .badge {{
             font-size: 8px;
-            padding: 1px 3px;
+            padding: 1px 4px;
             border-radius: 3px;
             display: inline-block;
             margin-top: 1px;
@@ -270,14 +270,13 @@ elif menu == "組織図・紹介ツリー":
         
         .line-v {{
             width: 2px;
-            height: 15px;
-            background-color: #bbb;
+            height: 16px;
+            background-color: #aaa;
         }}
         .children-container {{
             display: flex;
             justify-content: center;
             position: relative;
-            margin-top: 0px;
         }}
         .children-container::before {{
             content: '';
@@ -286,13 +285,13 @@ elif menu == "組織図・紹介ツリー":
             left: 25%;
             right: 25%;
             height: 2px;
-            background-color: #bbb;
+            background-color: #aaa;
         }}
         .child-branch {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0 8px;
+            padding: 0 10px;
             position: relative;
         }}
         .child-branch::before {{
@@ -301,22 +300,23 @@ elif menu == "組織図・紹介ツリー":
             top: 0;
             left: 50%;
             width: 2px;
-            height: 15px;
-            background-color: #bbb;
+            height: 16px;
+            background-color: #aaa;
             transform: translateX(-50%);
         }}
     </style>
     </head>
     <body>
         <div class="tree-root">
-            <div style="margin-bottom: 4px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ階層</div>
+            <div style="margin-bottom: 6px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ階層</div>
             {trees_html}
         </div>
     </body>
     </html>
     """
     
-    components.html(full_html, height=500, scrolling=True)
+    # 横スクロールを有効にしたコンポーネント表示
+    components.html(full_html, height=520, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -366,7 +366,7 @@ elif menu == "メンバーの削除・編集":
         
         if st.button("選択したメンバーを削除する", type="primary"):
             st.session_state["members"] = [m for m in members if m["name"] != target_name]
-            save_data(st.session_state["members"])
+            save_data(members)
             st.success(f"メンバー「{target_name}」を削除しました！")
     else:
         st.write("登録されているメンバーはいません。")
