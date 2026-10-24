@@ -27,14 +27,20 @@ def load_data():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if data and "parent_id" in data[0]:
+                    # 既存データに新項目がない場合の互換性対応
+                    for m in data:
+                        if "introducer" not in m:
+                            m["introducer"] = ""
+                        if "remarks" not in m:
+                            m["remarks"] = ""
                     return data
         except Exception:
             pass
             
     return [
-        {"id": 1, "name": "大西 真由美", "parent_id": None, "binary_side": None, "rank": "リーダー", "status": "アクティブ", "seminar_count": 5, "image": ""},
-        {"id": 2, "name": "山田 太郎", "parent_id": 1, "binary_side": "左", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
-        {"id": 3, "name": "佐藤 花子", "parent_id": 1, "binary_side": "右", "rank": "メンバー", "status": "アクティブ", "seminar_count": 1, "image": ""},
+        {"id": 1, "name": "大西 真由美", "parent_id": None, "binary_side": None, "rank": "リーダー", "status": "アクティブ", "seminar_count": 5, "introducer": "", "remarks": "", "image": ""},
+        {"id": 2, "name": "山田 太郎", "parent_id": 1, "binary_side": "左", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "introducer": "大西 真由美", "remarks": "要フォロー", "image": ""},
+        {"id": 3, "name": "佐藤 花子", "parent_id": 1, "binary_side": "右", "rank": "メンバー", "status": "アクティブ", "seminar_count": 1, "introducer": "大西 真由美", "remarks": "", "image": ""},
     ]
 
 def save_data(members):
@@ -74,6 +80,10 @@ if menu == "新規メンバー登録":
         status = st.selectbox("ステータス", ["アクティブ", "新規", "休眠"])
         seminar_count = st.number_input("セミナー参加回数", min_value=0, value=0)
         
+        # 追加項目
+        introducer = st.text_input("紹介者（自由入力）")
+        remarks = st.text_area("備考欄・メモ書き")
+        
         submitted = st.form_submit_button("メンバーを登録する")
         
         if submitted:
@@ -96,6 +106,8 @@ if menu == "新規メンバー登録":
                             "rank": rank,
                             "status": status,
                             "seminar_count": seminar_count,
+                            "introducer": introducer,
+                            "remarks": remarks,
                             "image": ""
                         })
                         save_data(members)
@@ -110,6 +122,8 @@ if menu == "新規メンバー登録":
                         "rank": rank,
                         "status": status,
                         "seminar_count": seminar_count,
+                        "introducer": introducer,
+                        "remarks": remarks,
                         "image": ""
                     })
                     save_data(members)
@@ -121,16 +135,13 @@ elif menu == "組織図・紹介ツリー":
     
     members = st.session_state["members"]
     
-    # ミーティング向け設定：全体俯瞰モード ＆ 主要リーダー拡大設定
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
         view_mode = st.selectbox("表示モード", ["通常表示", "全体俯瞰（コンパクト）モード"])
     with col_opt2:
-        # 注目したい主要リーダー（3〜5人）をピックアップして大きく表示する設定
         leader_candidates = [m["name"] for m in members]
         highlight_leaders = st.multiselect("⭐ ミーティングで大きく強調するリーダー（3〜5人選択可）", options=leader_candidates, default=[])
 
-    # モードに応じたCSSスタイルの切り替え
     if view_mode == "全体俯瞰（コンパクト）モード":
         img_size = "28px"
         card_width = "90px"
@@ -363,7 +374,7 @@ elif menu == "組織図・紹介ツリー":
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
-    st.write("各メンバーを展開すると、顔写真のアップロードや情報の変更ができます。")
+    st.write("各メンバーを展開すると、紹介者・備考の確認や顔写真のアップロードができます。")
     
     for m in members:
         parent_name = "トップ"
@@ -378,6 +389,8 @@ elif menu == "組織図・紹介ツリー":
             col_a, col_b = st.columns([2, 1])
             with col_a:
                 st.write(f"- **ランク:** {m['rank']} | **ステータス:** {m['status']}")
+                st.write(f"- **紹介者:** {m.get('introducer', '（未設定）')}")
+                st.write(f"- **備考:** {m.get('remarks', '（なし）')}")
                 
                 new_count = st.number_input("セミナー参加回数を更新", min_value=0, value=m["seminar_count"], key=f"sem_{m['id']}")
                 if new_count != m["seminar_count"]:
@@ -412,7 +425,6 @@ elif menu == "メンバーの編集・削除":
                 st.write(f"**【{target_member['name']}】の情報を編集**")
                 new_name = st.text_input("氏名", value=target_member["name"])
                 
-                # 親の選択肢（自分自身は除外）
                 parent_options = {m["id"]: f"{m['name']} ({m['rank']})" for m in members if m["id"] != target_member["id"]}
                 parent_options[0] = "【トップ（最上部）】"
                 
@@ -442,6 +454,10 @@ elif menu == "メンバーの編集・削除":
                 status_index = statuses.index(target_member["status"]) if target_member["status"] in statuses else 0
                 new_status = st.selectbox("ステータス", statuses, index=status_index)
                 
+                # 追加項目の編集
+                new_introducer = st.text_input("紹介者", value=target_member.get("introducer", ""))
+                new_remarks = st.text_area("備考欄・メモ書き", value=target_member.get("remarks", ""))
+                
                 update_submitted = st.form_submit_button("変更を保存する")
                 
                 if update_submitted:
@@ -450,6 +466,8 @@ elif menu == "メンバーの編集・削除":
                     target_member["binary_side"] = None if selected_parent_id == 0 else new_side
                     target_member["rank"] = new_rank
                     target_member["status"] = new_status
+                    target_member["introducer"] = new_introducer
+                    target_member["remarks"] = new_remarks
                     save_data(members)
                     st.success(f"メンバー「{new_name}」の情報を更新しました！")
             
