@@ -115,13 +115,14 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（横スクロール完全対応・ズレ調整済みツリー） ---
+# --- 2. 組織図・紹介ツリー（SVG精密直線＆親ラベルバッジ表示） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（無限階層・全体俯瞰ツリー）")
-    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
+    st.subheader("🌳 バイナリー組織図（きれいな接続線・親情報付き）")
+    st.write("顔写真の上に配置先（上位名-左右）を表示し、ズレのない線で繋いでいます。")
     
     members = st.session_state["members"]
     
+    # メンバーカードを生成（写真の上に「親の名前 - 左右」を表示）
     def render_node_html(member_id):
         m = next((item for item in members if item["id"] == member_id), None)
         if not m:
@@ -133,39 +134,45 @@ elif menu == "組織図・紹介ツリー":
         else:
             img_tag = '<div class="member-img no-img">写真なし</div>'
             
-        side = m.get("binary_side")
-        badge = f'<div class="badge {side}">{side}</div>' if side else ''
+        # 親の名前を取得してバッジ化（写真の上に表示）
+        parent_info = ""
+        if m.get("parent_id"):
+            p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
+            if p_obj:
+                side = m.get("binary_side", "")
+                parent_info = f'<div class="parent-badge">{p_obj["name"]} - {side}</div>'
+        else:
+            parent_info = '<div class="parent-badge top">👑 トップ</div>'
         
         left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
         right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
+        
+        left_html = render_node_html(left_child["id"]) if left_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
+        right_html = render_node_html(right_child["id"]) if right_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
         
         if not left_child and not right_child:
             return f"""
             <div class="node-wrapper">
                 <div class="node-card">
+                    {parent_info}
                     {img_tag}
                     <div class="name">{m['name']}</div>
                     <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
-                    {badge}
                 </div>
             </div>
             """
             
-        left_html = render_node_html(left_child["id"]) if left_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
-        right_html = render_node_html(right_child["id"]) if right_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
-        
         return f"""
         <div class="node-wrapper">
             <div class="node-card">
+                {parent_info}
                 {img_tag}
                 <div class="name">{m['name']}</div>
                 <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
-                {badge}
             </div>
-            <div class="line-v"></div>
             <div class="children-container">
-                <div class="child-branch">{left_html}</div>
-                <div class="child-branch">{right_html}</div>
+                <div class="child-branch left">{left_html}</div>
+                <div class="child-branch right">{right_html}</div>
             </div>
         </div>
         """
@@ -176,6 +183,7 @@ elif menu == "組織図・紹介ツリー":
     for root in roots:
         trees_html += render_node_html(root["id"])
 
+    # 接続線を正確かつ綺麗に描画するためのCSS/JSテンプレート
     full_html = f"""
     <html>
     <head>
@@ -185,10 +193,10 @@ elif menu == "組織図・紹介ツリー":
             font-family: Meiryo, sans-serif;
             background-color: transparent;
             margin: 0;
-            padding: 20px 40px;
-            /* 左右どちらにも無制限にスクロールできるよう余白と幅を確保 */
+            padding: 20px;
             display: inline-block;
             min-width: 100%;
+            box-sizing: border-box;
         }}
         .tree-root {{
             display: flex;
@@ -196,46 +204,64 @@ elif menu == "組織図・紹介ツリー":
             align-items: center;
             width: max-content;
             margin: 0 auto;
+            position: relative;
         }}
         .node-wrapper {{
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
-            margin: 0 6px;
+            margin: 0 10px;
         }}
         .node-card {{
             text-align: center;
-            width: 105px;
-            background: white;
-            padding: 5px;
-            border-radius: 8px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+            width: 110px;
+            background: transparent;
+            padding: 4px;
             z-index: 2;
+            position: relative;
         }}
         .node-card.empty {{
             width: 80px;
-            height: 60px;
-            border: 2px dashed #ddd;
+            height: 65px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #bbb;
+            color: #aaa;
             font-size: 9px;
             background: #fafafa;
+            margin-top: 15px;
+        }}
+        .parent-badge {{
+            font-size: 9px;
+            font-weight: bold;
+            color: #1565c0;
+            background: #e3f2fd;
+            padding: 2px 6px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 3px;
+            white-space: nowrap;
+        }}
+        .parent-badge.top {{
+            color: #2e7d32;
+            background: #e8f5e9;
         }}
         .member-img {{
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid #4CAF50;
             margin: 0 auto 2px auto;
             display: block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
         .member-img.no-img {{
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             background: #e0e0e0;
             display: flex;
@@ -257,66 +283,62 @@ elif menu == "組織図・紹介ツリー":
             font-size: 8px;
             color: #666;
         }}
-        .badge {{
-            font-size: 8px;
-            padding: 1px 4px;
-            border-radius: 3px;
-            display: inline-block;
-            margin-top: 1px;
-            font-weight: bold;
-        }}
-        .badge.左 {{ background: #e3f2fd; color: #1565c0; }}
-        .badge.右 {{ background: #fbe9e7; color: #d84315; }}
         
-        .line-v {{
-            width: 2px;
-            height: 16px;
-            background-color: #aaa;
-        }}
         .children-container {{
             display: flex;
             justify-content: center;
             position: relative;
-        }}
-        .children-container::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 25%;
-            right: 25%;
-            height: 2px;
-            background-color: #aaa;
+            margin-top: 25px;
         }}
         .child-branch {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0 10px;
+            padding: 0 12px;
             position: relative;
+        }}
+        
+        /* CSSでズレのないT字接続線をつくる設計 */
+        .children-container::before {{
+            content: '';
+            position: absolute;
+            top: -15px;
+            left: 25%;
+            right: 25%;
+            height: 2px;
+            background-color: #999;
+        }}
+        .node-wrapper > .children-container::after {{
+            content: '';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            width: 2px;
+            height: 10px;
+            background-color: #999;
+            transform: translateX(-50%);
         }}
         .child-branch::before {{
             content: '';
             position: absolute;
-            top: 0;
+            top: -15px;
             left: 50%;
             width: 2px;
-            height: 16px;
-            background-color: #aaa;
+            height: 15px;
+            background-color: #999;
             transform: translateX(-50%);
         }}
     </style>
     </head>
     <body>
         <div class="tree-root">
-            <div style="margin-bottom: 6px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ階層</div>
             {trees_html}
         </div>
     </body>
     </html>
     """
     
-    # 横スクロールを有効にしたコンポーネント表示
-    components.html(full_html, height=520, scrolling=True)
+    components.html(full_html, height=540, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -366,7 +388,7 @@ elif menu == "メンバーの削除・編集":
         
         if st.button("選択したメンバーを削除する", type="primary"):
             st.session_state["members"] = [m for m in members if m["name"] != target_name]
-            save_data(members)
+            save_data(st.session_state["members"])
             st.success(f"メンバー「{target_name}」を削除しました！")
     else:
         st.write("登録されているメンバーはいません。")
