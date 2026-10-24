@@ -115,17 +115,17 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（無限階層・クリーンなツリー構造） ---
+# --- 2. 組織図・紹介ツリー（CSSツリーによる完璧な線描画） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（無限階層・すっきりツリー構造）")
-    st.write("左右どちらにも自由にスクロールして全体を見渡せます。")
+    st.subheader("🌳 バイナリー組織図（無限階層・完全結線ツリー）")
+    st.write("左右どちらにも自由にスクロールして全体を見渡せます。接続線も綺麗に繋がります。")
     
     members = st.session_state["members"]
     
-    def render_node_html(member_id):
+    def render_tree_li(member_id):
         m = next((item for item in members if item["id"] == member_id), None)
         if not m:
-            return '<div class="node-card empty">未配置</div>'
+            return '<li><div class="node-card empty">未配置</div></li>'
             
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
@@ -133,7 +133,7 @@ elif menu == "組織図・紹介ツリー":
         else:
             img_tag = '<div class="member-img no-img">写真なし</div>'
             
-        # 親の名前 + 左右バッジを写真の上に表示
+        # 写真の上に「親の名前 - 左右」を表示
         parent_info = ""
         if m.get("parent_id"):
             p_obj = next((item for item in members if item["id"] == m["parent_id"]), None)
@@ -141,51 +141,46 @@ elif menu == "組織図・紹介ツリー":
                 side = m.get("binary_side", "")
                 parent_info = f'<div class="parent-badge">{p_obj["name"]} - {side}</div>'
         else:
-            parent_info = '<div class="parent-badge top">👑 トップ</div>'
+            parent_info = '<div class="parent-badge top">👑 トップ階層</div>'
         
+        # 左右の子を厳密に取得
         left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
         right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
         
-        left_html = render_node_html(left_child["id"]) if left_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
-        right_html = render_node_html(right_child["id"]) if right_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
-        
-        if not left_child and not right_child:
-            return f"""
-            <div class="node-wrapper">
-                <div class="node-card">
-                    {parent_info}
-                    {img_tag}
-                    <div class="name">{m['name']}</div>
-                    <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
-                </div>
-            </div>
-            """
-            
-        return f"""
-        <div class="node-wrapper">
-            <div class="node-card">
-                {parent_info}
-                {img_tag}
-                <div class="name">{m['name']}</div>
-                <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
-            </div>
-            <div class="line-container">
-                <div class="h-line"></div>
-            </div>
-            <div class="children-container">
-                <div class="child-branch">{left_html}</div>
-                <div class="child-branch">{right_html}</div>
-            </div>
+        card_html = f"""
+        <div class="node-card">
+            {parent_info}
+            {img_tag}
+            <div class="name">{m['name']}</div>
+            <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
         </div>
         """
+        
+        # 子がいない場合はここで終了
+        if not left_child and not right_child:
+            return f"<li>{card_html}</li>"
+            
+        # 子がいる場合は ul/li で左右の枝を展開（バイナリー構造を維持するため左右両方の枠を作る）
+        left_html = render_tree_li(left_child["id"]) if left_child else '<li><div class="node-card empty">未配置</div></li>'
+        right_html = render_tree_li(right_child["id"]) if right_child else '<li><div class="node-card empty">未配置</div></li>'
+        
+        return f"""
+        <li>
+            {card_html}
+            <ul>
+                {left_html}
+                {right_html}
+            </ul>
+        </li>
+        """
 
-    roots = [m for m in members if m.get("parent_id") is None]
+    roots = [m for m in members if m.get("parent_id"] is None]
     
-    trees_html = ""
+    tree_lis = ""
     for root in roots:
-        trees_html += render_node_html(root["id"])
+        tree_lis += render_tree_li(root["id"])
 
-    # 接続線のズレやはみ出しを完全に解消した最新レイアウトCSS
+    # 伝統的かつ最強に美しいCSSツリーのスタイル
     full_html = f"""
     <html>
     <head>
@@ -195,25 +190,88 @@ elif menu == "組織図・紹介ツリー":
             font-family: Meiryo, sans-serif;
             background-color: transparent;
             margin: 0;
-            padding: 20px;
+            padding: 20px 40px;
             display: inline-block;
             min-width: 100%;
             box-sizing: border-box;
         }}
-        .tree-root {{
+        .tree-container {{
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: center;
             width: max-content;
             margin: 0 auto;
         }}
-        .node-wrapper {{
+        
+        /* CSS Tree Styling */
+        .tree ul {{
+            padding-top: 20px; 
+            position: relative;
+            transition: all 0.5s;
+            display: flex;
+            justify-content: center;
+            list-style-type: none;
+            margin: 0;
+            padding-left: 0;
+        }
+        .tree li {{
+            float: left; 
+            text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 20px 10px 0 10px;
+            transition: all 0.5s;
             display: flex;
             flex-direction: column;
             align-items: center;
-            position: relative;
-            margin: 0 8px;
+        }
+        
+        /* 親から子への線を結ぶ疑似要素 */
+        .tree li::before, .tree li::after {{
+            content: '';
+            position: absolute; 
+            top: 0; 
+            right: 50%;
+            border-top: 2px solid #aaa;
+            width: 50%; 
+            height: 20px;
+        }
+        .tree li::after {{
+            right: auto; 
+            left: 50%;
+            border-left: 2px solid #aaa;
+        }
+        
+        /* 子が1つだけのときの調整 */
+        .tree li:only-child::after, .tree li:only-child::before {{
+            display: none;
         }}
+        .tree li:only-child {{ 
+            padding-top: 0; 
+        }
+        
+        /* 左右端の処理 */
+        .tree li:first-child::before, .tree li:last-child::after {{
+            border: 0px none;
+        }}
+        .tree li:last-child::before {{
+            border-right: 2px solid #aaa;
+            border-radius: 0 6px 0 0;
+        }
+        .tree li:first-child::after {{
+            border-radius: 6px 0 0 0;
+        }
+        
+        /* 下層へ降りる縦線 */
+        .tree ul ul::before {{
+            content: ''; 
+            position: absolute; 
+            top: 0; 
+            left: 50%;
+            border-left: 2px solid #aaa;
+            width: 0; 
+            height: 20px;
+        }
+        
         .node-card {{
             text-align: center;
             width: 110px;
@@ -284,58 +342,15 @@ elif menu == "組織図・紹介ツリー":
             font-size: 8px;
             color: #666;
         }}
-        
-        /* 接続線のデザインをスッキリ整理 */
-        .line-container {{
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 15px;
-            position: relative;
-        }}
-        .line-container::before {{
-            content: '';
-            width: 2px;
-            height: 15px;
-            background-color: #bbb;
-        }}
-        .h-line {{
-            position: absolute;
-            bottom: 0;
-            left: 25%;
-            right: 25%;
-            height: 2px;
-            background-color: #bbb;
-        }}
-        .children-container {{
-            display: flex;
-            justify-content: center;
-            position: relative;
-            width: 100%;
-        }}
-        .child-branch {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 0 10px;
-            position: relative;
-        }}
-        .child-branch::before {{
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 50%;
-            width: 2px;
-            height: 15px;
-            background-color: #bbb;
-            transform: translateX(-50%);
-        }}
     </style>
     </head>
     <body>
-        <div class="tree-root">
-            {trees_html}
+        <div class="tree-container">
+            <div class="tree">
+                <ul>
+                    {tree_lis}
+                </ul>
+            </div>
         </div>
     </body>
     </html>
