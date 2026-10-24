@@ -9,7 +9,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 DATA_FILE = "prime_members_data.json"
 
-# 画像をBase64エンコードしてHTML表示する関数
 def get_image_base64(path):
     if path and os.path.exists(path):
         try:
@@ -21,7 +20,6 @@ def get_image_base64(path):
             pass
     return None
 
-# データの読み込み関数（綺麗なバイナリーツリー初期構造を設定）
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
@@ -32,7 +30,6 @@ def load_data():
         except Exception:
             pass
             
-    # マサキ医院長のイメージに近づけた初期バイナリーツリーデータ
     return [
         {"id": 1, "name": "大西 真由美", "parent_id": None, "binary_side": None, "rank": "リーダー", "status": "アクティブ", "seminar_count": 5, "image": ""},
         {"id": 2, "name": "山田 太郎", "parent_id": 1, "binary_side": "左", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
@@ -117,25 +114,30 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（左右2系列のバイナリーカード表示） ---
+# --- 2. 組織図・紹介ツリー（HTML/CSSによる確実な左右2系列ツリー表示） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（顔写真付き・左右2系列）")
-    st.write("トップを起点に、左系列と右系列に分かれたツリー構造を表示しています。")
+    st.write("トップを起点に、左系列と右系列が左右に分かれるツリー構造です。")
     
     members = st.session_state["members"]
     
-    # メンバーカードを描画する関数
-    def render_card(m, side_label=""):
+    # メンバーカードを生成するHTML関数
+    def make_card(m, side_label=""):
+        if not m:
+            return '<div style="width: 120px; height: 90px; border: 2px dashed #ccc; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px; background: #fafafa; margin: 0 auto;">（未配置）</div>'
+            
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
-            img_tag = f'<img src="{img_b64}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:4px;">'
+            img_tag = f'<img src="{img_b64}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:3px;">'
         else:
-            img_tag = '<div style="width:55px; height:55px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 4px auto; font-size:9px; color:#666;">写真なし</div>'
+            img_tag = '<div style="width:50px; height:50px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 3px auto; font-size:9px; color:#666;">写真なし</div>'
         
-        badge = f'<div style="background:#e0f7fa; color:#00796b; padding:1px 4px; border-radius:3px; font-size:10px; display:inline-block; margin-top:2px;">{side_label}</div>' if side_label else ''
+        badge_bg = "#e3f2fd" if side_label == "左" else "#fbe9e7"
+        badge_color = "#1565c0" if side_label == "左" else "#d84315"
+        badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:10px; display:inline-block; margin-top:2px; font-weight:bold;">{side_label}系列</div>' if side_label else ''
         
         return f"""
-        <div style="border: 2px solid #d0d0d0; border-radius: 10px; padding: 8px; text-align: center; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.08); width: 130px; margin: 0 auto;">
+        <div style="border: 2px solid #d0d0d0; border-radius: 10px; padding: 6px; text-align: center; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.08); width: 130px; margin: 0 auto;">
             {img_tag}
             <div style="font-weight: bold; font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
             <div style="font-size: 10px; color: #666;">{m['rank']} (参:{m['seminar_count']}回)</div>
@@ -146,52 +148,68 @@ elif menu == "組織図・紹介ツリー":
     roots = [m for m in members if m.get("parent_id") is None]
     
     for root in roots:
-        # トップ階層
-        st.markdown(f"<div style='text-align: center; font-weight: bold; color: #555; margin-bottom: 5px;'>👑 トップ</div>", unsafe_allow_html=True)
-        st.markdown(render_card(root), unsafe_allow_html=True)
-        st.markdown("<div style='text-align: center; font-size: 20px; color: #888; margin: 5px 0;'>│</div>", unsafe_allow_html=True)
+        # トップカード
+        top_html = make_card(root)
         
-        # 左右の枝分かれ（バイナリー2系列）を表示
+        # 左右の子孫を取得
         left_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "左"), None)
         right_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "右"), None)
         
-        col_L, col_R = st.columns(2)
+        left_html = make_card(left_child, "左")
+        right_html = make_card(right_child, "右")
         
-        with col_L:
-            st.markdown("<div style='text-align: center; color: #1976D2; font-weight: bold; font-size: 12px;'>◀ 左系列</div>", unsafe_allow_html=True)
-            if left_child:
-                st.markdown(render_card(left_child, "左"), unsafe_allow_html=True)
-                
-                # さらにその下の階層（例：左側のさらに左右）
-                sub_left = next((m for m in members if m.get("parent_id") == left_child["id"] and m.get("binary_side") == "左"), None)
-                sub_right = next((m for m in members if m.get("parent_id") == left_child["id"] and m.get("binary_side") == "右"), None)
-                if sub_left or sub_right:
-                    st.markdown("<div style='text-align: center; color: #aaa; font-size: 14px;'>│</div>", unsafe_allow_html=True)
-                    sub_col1, sub_col2 = st.columns(2)
-                    with sub_col1:
-                        if sub_left: st.markdown(render_card(sub_left, "左"), unsafe_allow_html=True)
-                    with sub_col2:
-                        if sub_right: st.markdown(render_card(sub_right, "右"), unsafe_allow_html=True)
-            else:
-                st.markdown("<div style='text-align: center; color: #aaa; font-size: 11px; padding: 10px;'>（未配置）</div>", unsafe_allow_html=True)
-                
-        with col_R:
-            st.markdown("<div style='text-align: center; color: #E64A19; font-weight: bold; font-size: 12px;'>右系列 ▶</div>", unsafe_allow_html=True)
-            if right_child:
-                st.markdown(render_card(right_child, "右"), unsafe_allow_html=True)
-                
-                # さらにその下の階層（例：右側のさらに左右）
-                sub_left = next((m for m in members if m.get("parent_id") == right_child["id"] and m.get("binary_side") == "左"), None)
-                sub_right = next((m for m in members if m.get("parent_id") == right_child["id"] and m.get("binary_side") == "右"), None)
-                if sub_left or sub_right:
-                    st.markdown("<div style='text-align: center; color: #aaa; font-size: 14px;'>│</div>", unsafe_allow_html=True)
-                    sub_col1, sub_col2 = st.columns(2)
-                    with sub_col1:
-                        if sub_left: st.markdown(render_card(sub_left, "左"), unsafe_allow_html=True)
-                    with sub_col2:
-                        if sub_right: st.markdown(render_card(sub_right, "右"), unsafe_allow_html=True)
-            else:
-                st.markdown("<div style='text-align: center; color: #aaa; font-size: 11px; padding: 10px;'>（未配置）</div>", unsafe_allow_html=True)
+        # さらにその下の孫（左の左・左の右、右の左・右の右）
+        sub_l_l = next((m for m in members if left_child and m.get("parent_id") == left_child["id"] and m.get("binary_side") == "左"), None)
+        sub_l_r = next((m for m in members if left_child and m.get("parent_id") == left_child["id"] and m.get("binary_side") == "右"), None)
+        sub_r_l = next((m for m in members if right_child and m.get("parent_id") == right_child["id"] and m.get("binary_side") == "左"), None)
+        sub_r_r = next((m for m in members if right_child and m.get("parent_id") == right_child["id"] and m.get("binary_side") == "右"), None)
+        
+        sub_l_l_html = make_card(sub_l_l, "左")
+        sub_l_r_html = make_card(sub_l_r, "右")
+        sub_r_l_html = make_card(sub_r_l, "左")
+        sub_r_r_html = make_card(sub_r_r, "右")
+
+        # HTML/CSSで強制的に左右2系列のツリーを描画
+        tree_html = f"""
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%; font-family: Meiryo, sans-serif; overflow-x: auto; padding: 10px 0;">
+            <!-- トップ -->
+            <div style="margin-bottom: 5px; color: #555; font-size: 12px; font-weight: bold;">👑 トップ</div>
+            <div style="margin-bottom: 15px;">{top_html}</div>
+            
+            <!-- 枝分かれの縦線 -->
+            <div style="width: 2px; height: 20px; background-color: #999; margin-bottom: 0px;"></div>
+            <div style="width: 220px; height: 2px; background-color: #999; margin-bottom: 15px;"></div>
+            
+            <!-- 1段目（左右系列） -->
+            <div style="display: flex; justify-content: space-around; width: 100%; max-width: 340px; margin-bottom: 15px;">
+                <div style="flex: 1; text-align: center; padding: 0 5px;">{left_html}</div>
+                <div style="flex: 1; text-align: center; padding: 0 5px;">{right_html}</div>
+            </div>
+            
+            <!-- 2段目への接続（存在する場合） -->
+            <div style="display: flex; justify-content: space-around; width: 100%; max-width: 340px; margin-bottom: 15px;">
+                <div style="flex: 1; display: flex; justify-content: center;">
+                    {"<div style='width:2px; height:15px; background:#999;'></div>" if (sub_l_l or sub_l_r) else ""}
+                </div>
+                <div style="flex: 1; display: flex; justify-content: center;">
+                    {"<div style='width:2px; height:15px; background:#999;'></div>" if (sub_r_l or sub_r_r) else ""}
+                </div>
+            </div>
+            
+            <!-- 2段目（孫世代） -->
+            <div style="display: flex; justify-content: space-around; width: 100%; max-width: 340px;">
+                <div style="flex: 1; display: flex; justify-content: space-around; padding: 0 2px;">
+                    <div style="transform: scale(0.85);">{sub_l_l_html}</div>
+                    <div style="transform: scale(0.85);">{sub_l_r_html}</div>
+                </div>
+                <div style="flex: 1; display: flex; justify-content: space-around; padding: 0 2px;">
+                    <div style="transform: scale(0.85);">{sub_r_l_html}</div>
+                    <div style="transform: scale(0.85);">{sub_r_r_html}</div>
+                </div>
+            </div>
+        </div>
+        """
+        st.markdown(tree_html, unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
