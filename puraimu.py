@@ -9,7 +9,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 DATA_FILE = "prime_members_data.json"
 
-# 画像をBase64エンコードして確実にHTML表示する関数
+# 画像をBase64エンコードしてHTML表示する関数
 def get_image_base64(path):
     if path and os.path.exists(path):
         try:
@@ -21,20 +21,18 @@ def get_image_base64(path):
             pass
     return None
 
-# データの読み込み関数（古いデータ形式の時は自動修復）
+# データの読み込み関数（綺麗なバイナリーツリー初期構造を設定）
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # 必須キーがなければ初期データにする
-                if data and "parent_id" not in data[0]:
-                    raise ValueError("古いデータ形式")
-                return data
+                if data and "parent_id" in data[0]:
+                    return data
         except Exception:
             pass
             
-    # 初期データ
+    # マサキ医院長のイメージに近づけた初期バイナリーツリーデータ
     return [
         {"id": 1, "name": "大西 真由美", "parent_id": None, "binary_side": None, "rank": "リーダー", "status": "アクティブ", "seminar_count": 5, "image": ""},
         {"id": 2, "name": "山田 太郎", "parent_id": 1, "binary_side": "左", "rank": "リーダー", "status": "アクティブ", "seminar_count": 3, "image": ""},
@@ -64,7 +62,7 @@ if menu == "新規メンバー登録":
         name = st.text_input("メンバー氏名")
         
         parent_options = {m["id"]: f"{m['name']} ({m['rank']})" for m in members}
-        parent_options[0] = "【トップ（大西真由美など最上部）】"
+        parent_options[0] = "【トップ（最上部）】"
         
         selected_parent_id = st.selectbox(
             "配置先の親（上位メンバー）を選択", 
@@ -119,53 +117,81 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（写真付きカード表示） ---
+# --- 2. 組織図・紹介ツリー（左右2系列のバイナリーカード表示） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（顔写真付き）")
-    st.write("各メンバーの顔写真と左右のつながりを階層ごとに表示しています。")
+    st.subheader("🌳 バイナリー組織図（顔写真付き・左右2系列）")
+    st.write("トップを起点に、左系列と右系列に分かれたツリー構造を表示しています。")
     
     members = st.session_state["members"]
     
-    # メンバーカードを描画するヘルパー関数
-    def render_member_card(m):
+    # メンバーカードを描画する関数
+    def render_card(m, side_label=""):
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
-            img_tag = f'<img src="{img_b64}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:5px;">'
+            img_tag = f'<img src="{img_b64}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:4px;">'
         else:
-            img_tag = '<div style="width:60px; height:60px; border-radius:50%; background:#ddd; display:flex; align-items:center; justify-content:center; margin:0 auto 5px auto; font-size:10px; color:#666;">写真なし</div>'
+            img_tag = '<div style="width:55px; height:55px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 4px auto; font-size:9px; color:#666;">写真なし</div>'
         
-        side_badge = f'<span style="background:#e0f7fa; color:#00796b; padding:2px 6px; border-radius:4px; font-size:11px;">{m.get("binary_side")}</span>' if m.get("binary_side") else ''
+        badge = f'<div style="background:#e0f7fa; color:#00796b; padding:1px 4px; border-radius:3px; font-size:10px; display:inline-block; margin-top:2px;">{side_label}</div>' if side_label else ''
         
-        card_html = f"""
-        <div style="border: 2px solid #e0e0e0; border-radius: 10px; padding: 10px; text-align: center; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin: 5px; width: 140px; display: inline-block; vertical-align: top;">
+        return f"""
+        <div style="border: 2px solid #d0d0d0; border-radius: 10px; padding: 8px; text-align: center; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.08); width: 130px; margin: 0 auto;">
             {img_tag}
-            <div style="font-weight: bold; font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
-            <div style="font-size: 11px; color: #666; margin-top: 2px;">{m['rank']}</div>
-            <div style="font-size: 11px; color: #888; margin-top: 2px;">参: {m['seminar_count']}回</div>
-            <div style="margin-top: 4px;">{side_badge}</div>
+            <div style="font-weight: bold; font-size: 13px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
+            <div style="font-size: 10px; color: #666;">{m['rank']} (参:{m['seminar_count']}回)</div>
+            {badge}
         </div>
         """
-        st.markdown(card_html, unsafe_allow_html=True)
 
-    # 階層構造（ツリー）を視覚的に表示
     roots = [m for m in members if m.get("parent_id") is None]
     
-    def display_tree(parent_id, indent=0):
-        children = [m for m in members if m.get("parent_id") == parent_id]
-        for child in children:
-            col1, col2 = st.columns([indent + 1, 10])
-            with col2:
-                render_member_card(child)
-            # 再帰的に子を呼び出し
-            display_tree(child["id"], indent + 1)
-
-    # 表示実行
     for root in roots:
-        st.markdown("### 👑 トップ階層")
-        render_member_card(root)
-        st.markdown("---")
-        st.markdown("### 🌿 配下メンバー（左右ツリー）")
-        display_tree(root["id"], 0)
+        # トップ階層
+        st.markdown(f"<div style='text-align: center; font-weight: bold; color: #555; margin-bottom: 5px;'>👑 トップ</div>", unsafe_allow_html=True)
+        st.markdown(render_card(root), unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; font-size: 20px; color: #888; margin: 5px 0;'>│</div>", unsafe_allow_html=True)
+        
+        # 左右の枝分かれ（バイナリー2系列）を表示
+        left_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "左"), None)
+        right_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "右"), None)
+        
+        col_L, col_R = st.columns(2)
+        
+        with col_L:
+            st.markdown("<div style='text-align: center; color: #1976D2; font-weight: bold; font-size: 12px;'>◀ 左系列</div>", unsafe_allow_html=True)
+            if left_child:
+                st.markdown(render_card(left_child, "左"), unsafe_allow_html=True)
+                
+                # さらにその下の階層（例：左側のさらに左右）
+                sub_left = next((m for m in members if m.get("parent_id") == left_child["id"] and m.get("binary_side") == "左"), None)
+                sub_right = next((m for m in members if m.get("parent_id") == left_child["id"] and m.get("binary_side") == "右"), None)
+                if sub_left or sub_right:
+                    st.markdown("<div style='text-align: center; color: #aaa; font-size: 14px;'>│</div>", unsafe_allow_html=True)
+                    sub_col1, sub_col2 = st.columns(2)
+                    with sub_col1:
+                        if sub_left: st.markdown(render_card(sub_left, "左"), unsafe_allow_html=True)
+                    with sub_col2:
+                        if sub_right: st.markdown(render_card(sub_right, "右"), unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='text-align: center; color: #aaa; font-size: 11px; padding: 10px;'>（未配置）</div>", unsafe_allow_html=True)
+                
+        with col_R:
+            st.markdown("<div style='text-align: center; color: #E64A19; font-weight: bold; font-size: 12px;'>右系列 ▶</div>", unsafe_allow_html=True)
+            if right_child:
+                st.markdown(render_card(right_child, "右"), unsafe_allow_html=True)
+                
+                # さらにその下の階層（例：右側のさらに左右）
+                sub_left = next((m for m in members if m.get("parent_id") == right_child["id"] and m.get("binary_side") == "左"), None)
+                sub_right = next((m for m in members if m.get("parent_id") == right_child["id"] and m.get("binary_side") == "右"), None)
+                if sub_left or sub_right:
+                    st.markdown("<div style='text-align: center; color: #aaa; font-size: 14px;'>│</div>", unsafe_allow_html=True)
+                    sub_col1, sub_col2 = st.columns(2)
+                    with sub_col1:
+                        if sub_left: st.markdown(render_card(sub_left, "左"), unsafe_allow_html=True)
+                    with sub_col2:
+                        if sub_right: st.markdown(render_card(sub_right, "右"), unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='text-align: center; color: #aaa; font-size: 11px; padding: 10px;'>（未配置）</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -215,7 +241,7 @@ elif menu == "メンバーの削除・編集":
         
         if st.button("選択したメンバーを削除する", type="primary"):
             st.session_state["members"] = [m for m in members if m["name"] != target_name]
-            save_data(st.session_state["members"])
+            save_data(members)
             st.success(f"メンバー「{target_name}」を削除しました！")
     else:
         st.write("登録されているメンバーはいません。")
