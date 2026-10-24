@@ -127,7 +127,7 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 印刷用PDF対応ビュー） ---
+# --- 2. 組織図・紹介ツリー（全体俯瞰・注目リーダー拡大モード ＆ 確実な印刷用PDF対応） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（全体俯瞰・結線ツリー）")
     
@@ -211,7 +211,6 @@ elif menu == "組織図・紹介ツリー":
     for root in roots:
         tree_lis += render_tree_li(root["id"])
 
-    # 全画面・横スクロールのツリー全体をキレイに1枚のPDF/印刷にするための専用レイアウトスタイル
     full_html = f"""
     <html>
     <head>
@@ -222,15 +221,15 @@ elif menu == "組織図・紹介ツリー":
             background-color: #ffffff;
             margin: 0;
             padding: {pad_val};
-            display: block;
-            width: 100%;
+            display: inline-block;
+            min-width: 100%;
             box-sizing: border-box;
         }}
         .tree-container {{
             display: flex;
             justify-content: center;
-            width: 100%;
-            overflow-x: auto;
+            width: max-content;
+            margin: 0 auto;
         }}
         .tree ul {{
             padding-top: 20px; 
@@ -239,7 +238,7 @@ elif menu == "組織図・紹介ツリー":
             display: flex;
             justify-content: center;
             list-style-type: none;
-            margin: 0 auto;
+            margin: 0;
             padding-left: 0;
         }}
         .tree li {{
@@ -355,20 +354,9 @@ elif menu == "組織図・紹介ツリー":
             font-size: 8px;
             color: #666;
         }}
-        
-        /* 印刷・PDF出力時の最適化設定 */
-        @media print {{
-            body {{
-                background-color: #ffffff;
-            }}
-            .tree-container {{
-                overflow: visible !important;
-            }}
-        }}
     </style>
     </head>
     <body>
-        <div style="text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 10px; color: #333;">プライム共済 組織図レポート</div>
         <div class="tree-container">
             <div class="tree">
                 <ul>
@@ -383,46 +371,16 @@ elif menu == "組織図・紹介ツリー":
     # 組織図の表示
     components.html(full_html, height=520, scrolling=True)
 
-    st.markdown("### 📄 組織図のPDF保存・LINE/メール共有")
-    st.write("下のボタンを押すと、**組織図全体が綺麗に収まったPDF保存画面（印刷画面）**が直接開きます。「PDFとして保存」を選択してください。")
+    st.markdown("### 📄 組織図のPDF保存・共有")
+    st.write("下のボタンを押すと、組織図の全体をきれいに保存できるファイル（HTML）がダウンロードされます。")
     
-    # ブラウザの機能を使って組織図全体をPDFとして出力・印刷するためのボタン
-    pdf_button_html = f"""
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <style>
-        .pdf-btn {{
-            background-color: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            font-family: Meiryo, sans-serif;
-        }}
-        .pdf-btn:hover {{
-            background-color: #45a049;
-        }}
-    </style>
-    </head>
-    <body style="margin:0; background:transparent;">
-        <button class="pdf-btn" onclick="
-            var win = window.open('', '_blank');
-            win.document.write(`{full_html.replace('`', '\\`')}`);
-            win.document.close();
-            setTimeout(function(){{ win.print(); }}, 500);
-        ">🖨️ 組織図全体をPDF保存・印刷する</button>
-    </body>
-    </html>
-    """
-    components.html(pdf_button_html, height=60, scrolling=False)
+    # スマホでも確実にダウンロード・保存できるStreamlit標準のダウンロードボタンに変更
+    st.download_button(
+        label="📥 組織図全体をPDF/印刷用に保存する",
+        data=full_html,
+        file_name="prime_organization_tree.html",
+        mime="text/html"
+    )
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
