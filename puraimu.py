@@ -115,31 +115,31 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（枠なし・左右対称バイナリー表示） ---
+# --- 2. 組織図・紹介ツリー（ズレのない完全対称バイナリー表示） ---
 elif menu == "組織図・紹介ツリー":
     st.subheader("🌳 バイナリー組織図（倍々ツリー構造）")
-    st.write("トップから左右にきれいに枝分かれする組織図です。")
+    st.write("トップから左右対称にきれいに枝分かれする組織図です。")
     
     members = st.session_state["members"]
     
     def make_card(m, side_label=""):
         if not m:
-            return '<div style="width: 100px; height: 75px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 10px; margin: 0 auto;">未配置</div>'
+            return '<div style="width: 90px; height: 70px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 10px; margin: 0 auto; background: #fafafa;">未配置</div>'
             
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
-            img_tag = f'<img src="{img_b64}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:2px;">'
+            img_tag = f'<img src="{img_b64}" style="width:42px; height:42px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:2px;">'
         else:
-            img_tag = '<div style="width:45px; height:45px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 2px auto; font-size:9px; color:#666;">写真なし</div>'
+            img_tag = '<div style="width:42px; height:42px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 2px auto; font-size:9px; color:#666;">写真なし</div>'
         
         badge_bg = "#e3f2fd" if side_label == "左" else "#fbe9e7"
         badge_color = "#1565c0" if side_label == "左" else "#d84315"
         badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:9px; display:inline-block; margin-top:1px; font-weight:bold;">{side_label}</div>' if side_label else ''
         
         return f"""
-        <div style="text-align: center; width: 110px; margin: 0 auto; background: transparent;">
+        <div style="text-align: center; width: 100px; margin: 0 auto; background: transparent;">
             {img_tag}
-            <div style="font-weight: bold; font-size: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
+            <div style="font-weight: bold; font-size: 11px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
             <div style="font-size: 9px; color: #666;">{m['rank']} (参:{m['seminar_count']}回)</div>
             {badge}
         </div>
@@ -185,7 +185,7 @@ elif menu == "組織図・紹介ツリー":
                 flex-direction: column;
                 align-items: center;
                 width: 100%;
-                max-width: 400px;
+                max-width: 420px;
             }}
             .line-v {{
                 width: 2px;
@@ -193,18 +193,28 @@ elif menu == "組織図・紹介ツリー":
                 background-color: #bbb;
             }}
             .line-h {{
-                width: 240px;
+                width: 260px;
                 height: 2px;
                 background-color: #bbb;
             }}
-            .level-row {{
+            .row-split {{
                 display: flex;
-                justify-content: space-between;
                 width: 100%;
-                padding: 0 10px;
-                box-sizing: border-box;
+                justify-content: space-between;
             }}
-            .node-box {{
+            .branch-group {{
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }}
+            .sub-row {{
+                display: flex;
+                width: 100%;
+                justify-content: space-around;
+                margin-top: 4px;
+            }}
+            .sub-col {{
                 flex: 1;
                 display: flex;
                 justify-content: center;
@@ -213,34 +223,45 @@ elif menu == "組織図・紹介ツリー":
         </head>
         <body>
             <div class="tree-container">
+                <!-- トップ -->
                 <div style="margin-bottom: 3px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ</div>
-                <div style="margin-bottom: 8px;">{top_html}</div>
+                <div style="margin-bottom: 6px;">{top_html}</div>
                 
+                <!-- トップからの枝分かれ -->
                 <div class="line-v"></div>
-                <div class="line-h" style="margin-bottom: 8px;"></div>
+                <div class="line-h" style="margin-bottom: 6px;"></div>
                 
-                <div class="level-row" style="margin-bottom: 12px;">
-                    <div class="node-box">{left_html}</div>
-                    <div class="node-box">{right_html}</div>
+                <!-- 1段目（左右） -->
+                <div class="row-split" style="margin-bottom: 10px;">
+                    <div class="branch-group">{left_html}</div>
+                    <div class="branch-group">{right_html}</div>
                 </div>
                 
-                <div class="level-row" style="margin-bottom: 4px;">
-                    <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
-                    <div class="node-box"><div class="line-v" style="height: 12px;"></div></div>
-                </div>
-                <div class="level-row" style="margin-bottom: 8px;">
-                    <div class="node-box"><div style="width: 120px; height: 2px; background: #ccc;"></div></div>
-                    <div class="node-box"><div style="width: 120px; height: 2px; background: #ccc;"></div></div>
-                </div>
-                
-                <div class="level-row">
-                    <div class="node-box" style="display: flex; justify-content: space-around; width: 100%;">
-                        <div style="transform: scale(0.9);">{sub_l_l_html}</div>
-                        <div style="transform: scale(0.9);">{sub_l_r_html}</div>
+                <!-- 2段目への接続線（左右それぞれで綺麗に分岐） -->
+                <div class="row-split" style="margin-bottom: 2px;">
+                    <div class="branch-group">
+                        <div class="line-v" style="height: 10px;"></div>
+                        <div style="width: 100px; height: 2px; background: #ccc;"></div>
                     </div>
-                    <div class="node-box" style="display: flex; justify-content: space-around; width: 100%;">
-                        <div style="transform: scale(0.9);">{sub_r_l_html}</div>
-                        <div style="transform: scale(0.9);">{sub_r_r_html}</div>
+                    <div class="branch-group">
+                        <div class="line-v" style="height: 10px;"></div>
+                        <div style="width: 100px; height: 2px; background: #ccc;"></div>
+                    </div>
+                </div>
+                
+                <!-- 2段目（孫世代：左2人、右2人） -->
+                <div class="row-split" style="margin-top: 4px;">
+                    <div class="branch-group">
+                        <div class="sub-row">
+                            <div class="sub-col">{sub_l_l_html}</div>
+                            <div class="sub-col">{sub_l_r_html}</div>
+                        </div>
+                    </div>
+                    <div class="branch-group">
+                        <div class="sub-row">
+                            <div class="sub-col">{sub_r_l_html}</div>
+                            <div class="sub-col">{sub_r_r_html}</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -248,7 +269,7 @@ elif menu == "組織図・紹介ツリー":
         </html>
         """
         
-        components.html(tree_html, height=350, scrolling=True)
+        components.html(tree_html, height=360, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
