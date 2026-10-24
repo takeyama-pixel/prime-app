@@ -42,7 +42,7 @@ def save_data(members):
         json.dump(members, f, ensure_ascii=False, indent=4)
 
 st.title("プライム共済 組織・教育管理アプリ")
-st.write("マサキ医院長向け / 開発：石川副委員長")
+st.write("マサキ医院長向け / 開発：石川副委員長[cite: 1, 2]")
 
 if "members" not in st.session_state:
     st.session_state["members"] = load_data()
@@ -115,161 +115,213 @@ if menu == "新規メンバー登録":
                     save_data(members)
                     st.success(f"トップメンバー「{name}」を追加しました！")
 
-# --- 2. 組織図・紹介ツリー（ズレのない完全対称バイナリー表示） ---
+# --- 2. 組織図・紹介ツリー（無限階層対応のHTML/CSS再帰ツリー描画） ---
 elif menu == "組織図・紹介ツリー":
-    st.subheader("🌳 バイナリー組織図（倍々ツリー構造）")
-    st.write("トップから左右対称にきれいに枝分かれする組織図です。")
+    st.subheader("🌳 バイナリー組織図（無限階層・倍々ツリー構造）")
+    st.write("登録されたメンバーが増えても、自動で下層へ無限に枝分かれして広がります。")
     
     members = st.session_state["members"]
     
-    def make_card(m, side_label=""):
+    def render_node_html(member_id):
+        m = next((item for item in members if item["id"] == member_id), None)
         if not m:
-            return '<div style="width: 90px; height: 70px; border: 2px dashed #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 10px; margin: 0 auto; background: #fafafa;">未配置</div>'
+            return '<div class="node-card empty">未配置</div>'
             
         img_b64 = get_image_base64(m.get("image", ""))
         if img_b64:
-            img_tag = f'<img src="{img_b64}" style="width:42px; height:42px; border-radius:50%; object-fit:cover; border:2px solid #4CAF50; margin-bottom:2px;">'
+            img_tag = f'<img src="{img_b64}" class="member-img">'
         else:
-            img_tag = '<div style="width:42px; height:42px; border-radius:50%; background:#e0e0e0; display:flex; align-items:center; justify-content:center; margin:0 auto 2px auto; font-size:9px; color:#666;">写真なし</div>'
+            img_tag = '<div class="member-img no-img">写真なし</div>'
+            
+        side = m.get("binary_side")
+        badge = f'<div class="badge {side}">{side}</div>' if side else ''
         
-        badge_bg = "#e3f2fd" if side_label == "左" else "#fbe9e7"
-        badge_color = "#1565c0" if side_label == "左" else "#d84315"
-        badge = f'<div style="background:{badge_bg}; color:{badge_color}; padding:1px 4px; border-radius:3px; font-size:9px; display:inline-block; margin-top:1px; font-weight:bold;">{side_label}</div>' if side_label else ''
+        # 左右の子要素を検索
+        left_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "左"), None)
+        right_child = next((item for item in members if item.get("parent_id") == m["id"] and item.get("binary_side") == "右"), None)
+        
+        # 子がいない場合はここで終端
+        if not left_child and not right_child:
+            return f"""
+            <div class="node-wrapper">
+                <div class="node-card">
+                    {img_tag}
+                    <div class="name">{m['name']}</div>
+                    <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
+                    {badge}
+                </div>
+            </div>
+            """
+            
+        # 子がいる場合は再帰的にHTMLを生成してツリー構造を構築
+        left_html = render_node_html(left_child["id"]) if left_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
+        right_html = render_node_html(right_child["id"]) if right_child else '<div class="node-wrapper"><div class="node-card empty">未配置</div></div>'
         
         return f"""
-        <div style="text-align: center; width: 100px; margin: 0 auto; background: transparent;">
-            {img_tag}
-            <div style="font-weight: bold; font-size: 11px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</div>
-            <div style="font-size: 9px; color: #666;">{m['rank']} (参:{m['seminar_count']}回)</div>
-            {badge}
+        <div class="node-wrapper">
+            <div class="node-card">
+                {img_tag}
+                <div class="name">{m['name']}</div>
+                <div class="info">{m['rank']} (参:{m['seminar_count']}回)</div>
+                {badge}
+            </div>
+            <div class="line-v"></div>
+            <div class="children-container">
+                <div class="child-branch">{left_html}</div>
+                <div class="child-branch">{right_html}</div>
+            </div>
         </div>
         """
 
     roots = [m for m in members if m.get("parent_id") is None]
     
+    trees_html = ""
     for root in roots:
-        top_html = make_card(root)
-        
-        left_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "左"), None)
-        right_child = next((m for m in members if m.get("parent_id") == root["id"] and m.get("binary_side") == "右"), None)
-        
-        left_html = make_card(left_child, "左")
-        right_html = make_card(right_child, "右")
-        
-        sub_l_l = next((m for m in members if left_child and m.get("parent_id") == left_child["id"] and m.get("binary_side") == "左"), None)
-        sub_l_r = next((m for m in members if left_child and m.get("parent_id") == left_child["id"] and m.get("binary_side") == "右"), None)
-        sub_r_l = next((m for m in members if right_child and m.get("parent_id") == right_child["id"] and m.get("binary_side") == "左"), None)
-        sub_r_r = next((m for m in members if right_child and m.get("parent_id") == right_child["id"] and m.get("binary_side") == "右"), None)
-        
-        sub_l_l_html = make_card(sub_l_l, "左")
-        sub_l_r_html = make_card(sub_l_r, "右")
-        sub_r_l_html = make_card(sub_r_l, "左")
-        sub_r_r_html = make_card(sub_r_r, "右")
+        trees_html += render_node_html(root["id"])
 
-        tree_html = f"""
-        <html>
-        <head>
-        <meta charset="utf-8">
-        <style>
-            body {{
-                font-family: Meiryo, sans-serif;
-                background-color: transparent;
-                margin: 0;
-                padding: 5px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }}
-            .tree-container {{
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 100%;
-                max-width: 420px;
-            }}
-            .line-v {{
-                width: 2px;
-                height: 15px;
-                background-color: #bbb;
-            }}
-            .line-h {{
-                width: 260px;
-                height: 2px;
-                background-color: #bbb;
-            }}
-            .row-split {{
-                display: flex;
-                width: 100%;
-                justify-content: space-between;
-            }}
-            .branch-group {{
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }}
-            .sub-row {{
-                display: flex;
-                width: 100%;
-                justify-content: space-around;
-                margin-top: 4px;
-            }}
-            .sub-col {{
-                flex: 1;
-                display: flex;
-                justify-content: center;
-            }}
-        </style>
-        </head>
-        <body>
-            <div class="tree-container">
-                <!-- トップ -->
-                <div style="margin-bottom: 3px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ</div>
-                <div style="margin-bottom: 6px;">{top_html}</div>
-                
-                <!-- トップからの枝分かれ -->
-                <div class="line-v"></div>
-                <div class="line-h" style="margin-bottom: 6px;"></div>
-                
-                <!-- 1段目（左右） -->
-                <div class="row-split" style="margin-bottom: 10px;">
-                    <div class="branch-group">{left_html}</div>
-                    <div class="branch-group">{right_html}</div>
-                </div>
-                
-                <!-- 2段目への接続線（左右それぞれで綺麗に分岐） -->
-                <div class="row-split" style="margin-bottom: 2px;">
-                    <div class="branch-group">
-                        <div class="line-v" style="height: 10px;"></div>
-                        <div style="width: 100px; height: 2px; background: #ccc;"></div>
-                    </div>
-                    <div class="branch-group">
-                        <div class="line-v" style="height: 10px;"></div>
-                        <div style="width: 100px; height: 2px; background: #ccc;"></div>
-                    </div>
-                </div>
-                
-                <!-- 2段目（孫世代：左2人、右2人） -->
-                <div class="row-split" style="margin-top: 4px;">
-                    <div class="branch-group">
-                        <div class="sub-row">
-                            <div class="sub-col">{sub_l_l_html}</div>
-                            <div class="sub-col">{sub_l_r_html}</div>
-                        </div>
-                    </div>
-                    <div class="branch-group">
-                        <div class="sub-row">
-                            <div class="sub-col">{sub_r_l_html}</div>
-                            <div class="sub-col">{sub_r_r_html}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+    # 完全なツリー用HTML/CSSテンプレート
+    full_html = f"""
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+        body {{
+            font-family: Meiryo, sans-serif;
+            background-color: transparent;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }}
+        .tree-root {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            overflow-x: auto;
+        }}
+        .node-wrapper {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            margin: 0 4px;
+        }}
+        .node-card {{
+            text-align: center;
+            width: 100px;
+            background: white;
+            padding: 4px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            z-index: 2;
+        }}
+        .node-card.empty {{
+            width: 80px;
+            height: 60px;
+            border: 2px dashed #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            font-size: 9px;
+            background: #fafafa;
+        }}
+        .member-img {{
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #4CAF50;
+            margin: 0 auto 2px auto;
+            display: block;
+        }}
+        .member-img.no-img {{
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #666;
+            margin: 0 auto 2px auto;
+        }}
+        .name {{
+            font-weight: bold;
+            font-size: 11px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .info {{
+            font-size: 8px;
+            color: #666;
+        }}
+        .badge {{
+            font-size: 8px;
+            padding: 1px 3px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 1px;
+            font-weight: bold;
+        }}
+        .badge.左 {{ background: #e3f2fd; color: #1565c0; }}
+        .badge.右 {{ background: #fbe9e7; color: #d84315; }}
         
-        components.html(tree_html, height=360, scrolling=True)
+        .line-v {{
+            width: 2px;
+            height: 15px;
+            background-color: #bbb;
+        }}
+        .children-container {{
+            display: flex;
+            justify-content: center;
+            position: relative;
+            margin-top: 0px;
+        }}
+        .children-container::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 25%;
+            right: 25%;
+            height: 2px;
+            background-color: #bbb;
+        }}
+        .child-branch {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 8px;
+            position: relative;
+        }}
+        .child-branch::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 2px;
+            height: 15px;
+            background-color: #bbb;
+            transform: translateX(-50%);
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="tree-root">
+            <div style="margin-bottom: 4px; color: #555; font-size: 11px; font-weight: bold;">👑 トップ階層</div>
+            {trees_html}
+        </div>
+    </body>
+    </html>
+    """
+    
+    # スクロール可能な広大なキャンバスで表示（横スクロール・縦スクロール対応）
+    components.html(full_html, height=500, scrolling=True)
 
     st.markdown("---")
     st.subheader("📋 メンバー詳細 ＆ 写真・セミナー回数管理")
@@ -331,7 +383,7 @@ elif menu == "グループ全体集計":
     total_members = len(members)
     total_seminars = sum([m["seminar_count"] for m in members])
     left_count = len([m for m in members if m.get("binary_side") == "左"])
-    right_count = len([m for m in members if m.get("binary_side") == "右"])
+    right_count = len([m for m in members if m.get("binary_side"] == "右"])
     
     col1, col2, col3 = st.columns(3)
     col1.metric("総メンバー数", f"{total_members} 名")
